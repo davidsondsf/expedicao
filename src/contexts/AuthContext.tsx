@@ -1,72 +1,122 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { AuthUser, LoginDto } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import type { AuthUser, UserRole } from '@/types';
 
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (dto: LoginDto) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const MOCK_CREDENTIALS = [
-  { email: 'admin@galpaocopycentro.com', password: 'admin123', id: 'u1', name: 'Admin Galpão', role: 'ADMIN' as const },
-  { email: 'joao@galpaocopycentro.com', password: 'op123', id: 'u2', name: 'João Operador', role: 'OPERATOR' as const },
-];
+async function fetchUserRole(userId: string): Promise<UserRole> {
+  const { data } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return (data?.role as UserRole) ?? 'OPERATOR';
+}
+
+async function fetchUserProfile(userId: string) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('name, email')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data;
+}
+
+async function buildAuthUser(supabaseUser: SupabaseUser, session: Session): Promise<AuthUser> {
+  const [profile, role] = await Promise.all([
+    fetchUserProfile(supabaseUser.id),
+    fetchUserRole(supabaseUser.id),
+  ]);
+
+  return {
+    id: supabaseUser.id,
+    name: profile?.name ?? supabaseUser.user_metadata?.name ?? supabaseUser.email?.split('@')[0] ?? 'Usuário',
+    email: profile?.email ?? supabaseUser.email ?? '',
+    role,
+    createdAt: supabaseUser.created_at,
+    token: session.access_token,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('gcp_auth');
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem('gcp_auth');
+    // Listen to auth state changes first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        try {
+          const authUser = await buildAuthUser(session.user, session);
+          setUser(authUser);
+        } catch {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    // Then get current session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        try {
+          const authUser = await buildAuthUser(session.user, session);
+          setUser(authUser);
+        } catch {
+          setUser(null);
+        }
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (dto: LoginDto): Promise<void> => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const found = MOCK_CREDENTIALS.find(
-      c => c.email === dto.email && c.password === dto.password
-    );
-
-    if (!found) {
-      setIsLoading(false);
-      throw new Error('Credenciais inválidas. Verifique email e senha.');
-    }
-
-    const authUser: AuthUser = {
-      id: found.id,
-      name: found.name,
-      email: found.email,
-      role: found.role,
-      createdAt: new Date().toISOString(),
-      token: `mock-jwt-token-${found.id}-${Date.now()}`,
-    };
-
-    setUser(authUser);
-    localStorage.setItem('gcp_auth', JSON.stringify(authUser));
-    setIsLoading(false);
+  const login = async (email: string, password: string): Promise<void> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message === 'Invalid login credentials'
+      ? 'Credenciais inválidas. Verifique email e senha.'
+      : error.message);
   };
 
-  const logout = () => {
+  const signup = async (name: string, email: string, password: string): Promise<void> => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    if (error) throw new Error(error.message);
+  };
+
+  const logout = async (): Promise<void> => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('gcp_auth');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, isAdmin: user?.role === 'ADMIN' }}>
+    <AuthContext.Provider value={{
+      user,
+      isLoading,
+      login,
+      signup,
+      logout,
+      isAdmin: user?.role === 'ADMIN',
+    }}>
       {children}
     </AuthContext.Provider>
   );
