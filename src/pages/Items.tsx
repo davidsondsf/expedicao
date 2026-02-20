@@ -1,21 +1,29 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
-import { mockItems, mockCategories } from '@/data/mockData';
-import type { Item } from '@/types';
-import { Plus, Search, Package, Pencil, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Package, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ItemFormDialog } from '@/components/ItemFormDialog';
+import { useItems, useCreateItem, useUpdateItem, useDeactivateItem } from '@/hooks/useItems';
+import { useCategories } from '@/hooks/useCategories';
+import { useToast } from '@/hooks/use-toast';
+import type { Item } from '@/types';
 
 export default function Items() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [items, setItems] = useState<Item[]>(mockItems);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
+
+  const { data: items = [], isLoading } = useItems();
+  const { data: categories = [] } = useCategories();
+  const createItem = useCreateItem();
+  const updateItem = useUpdateItem();
+  const deactivateItem = useDeactivateItem();
 
   const filtered = items.filter(i => {
     const matchSearch = i.name.toLowerCase().includes(search.toLowerCase())
@@ -25,8 +33,36 @@ export default function Items() {
     return matchSearch && matchCat && i.active;
   });
 
-  const handleDeactivate = (id: string) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, active: false } : i));
+  const handleDeactivate = async (id: string) => {
+    try {
+      await deactivateItem.mutateAsync(id);
+      toast({ title: 'Item desativado.' });
+    } catch {
+      toast({ title: 'Erro ao desativar item', variant: 'destructive' });
+    }
+  };
+
+  type SaveData = {
+    name: string; brand: string; model: string; serialNumber?: string;
+    quantity: number; minQuantity: number; location: string;
+    categoryId: string; condition?: import('@/types').ItemCondition; photoUrl?: string;
+  };
+
+  const handleSave = async (data: SaveData) => {
+    try {
+      if (editing) {
+        await updateItem.mutateAsync({ id: editing.id, ...data });
+        toast({ title: 'Item atualizado com sucesso!' });
+      } else {
+        await createItem.mutateAsync(data);
+        toast({ title: 'Item cadastrado com sucesso!' });
+      }
+      setDialogOpen(false);
+      setEditing(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao salvar item';
+      toast({ title: msg, variant: 'destructive' });
+    }
   };
 
   return (
@@ -63,7 +99,7 @@ export default function Items() {
             onChange={e => setCategoryFilter(e.target.value)}
           >
             <option value="all">Todas as categorias</option>
-            {mockCategories.filter(c => c.active).map(c => (
+            {categories.filter(c => c.active).map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
@@ -85,7 +121,15 @@ export default function Items() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 && (
+                {isLoading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin opacity-40" />
+                      Carregando itens...
+                    </td>
+                  </tr>
+                )}
+                {!isLoading && filtered.length === 0 && (
                   <tr>
                     <td colSpan={7} className="text-center py-12 text-muted-foreground">
                       <Package className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -161,7 +205,7 @@ export default function Items() {
                           <button
                             onClick={() => handleDeactivate(item.id)}
                             className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            title="Desativar (soft delete)"
+                            title="Desativar"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -178,35 +222,9 @@ export default function Items() {
 
       <ItemFormDialog
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => { setDialogOpen(false); setEditing(null); }}
         item={editing}
-        onSave={(data) => {
-          if (editing) {
-            setItems(prev => prev.map(i => i.id === editing.id ? { ...i, ...data } : i));
-          } else {
-            const cat = mockCategories.find(c => c.id === data.categoryId);
-            const newItem: Item = {
-              id: `i${Date.now()}`,
-              name: data.name ?? '',
-              brand: data.brand ?? '',
-              model: data.model ?? '',
-              serialNumber: data.serialNumber,
-              quantity: data.quantity ?? 0,
-              minQuantity: data.minQuantity ?? 0,
-              location: data.location ?? '',
-              categoryId: data.categoryId ?? '',
-              barcode: `GCP-${new Date().getFullYear()}-${String(items.length + 1).padStart(5, '0')}`,
-              active: true,
-              condition: data.condition,
-              photoUrl: data.photoUrl,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              category: cat,
-            };
-            setItems(prev => [...prev, newItem]);
-          }
-          setDialogOpen(false);
-        }}
+        onSave={handleSave}
       />
     </AppLayout>
   );

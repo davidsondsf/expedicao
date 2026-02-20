@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
-import { mockItems, mockMovements } from '@/data/mockData';
+import { useItem } from '@/hooks/useItems';
+import { useItemMovements } from '@/hooks/useMovements';
+import { useItems } from '@/hooks/useItems';
 import Barcode from 'react-barcode';
-import { ArrowLeft, TrendingUp, TrendingDown, Package, MapPin, Tag, Hash, ImageIcon } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Package, MapPin, Tag, Hash, ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ItemCondition } from '@/types';
 
@@ -15,11 +17,22 @@ const CONDITION_MAP: Record<ItemCondition, { label: string; cls: string }> = {
 };
 
 export default function ItemDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const item = mockItems.find(i => i.id === id);
-  const movements = mockMovements.filter(m => m.itemId === id);
+  const { data: item, isLoading } = useItem(id ?? '');
+  const { data: movements = [] } = useItemMovements(id ?? '');
+  const { data: allItems = [] } = useItems();
+
+  if (isLoading) {
+    return (
+      <AppLayout title="Carregando...">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!item) {
     return (
@@ -56,7 +69,6 @@ export default function ItemDetail() {
           <div className="lg:col-span-2 space-y-4">
             <div className="stat-card">
               <div className="flex items-start gap-4 mb-4">
-                {/* Foto */}
                 <div className="w-20 h-20 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {item.photoUrl ? (
                     <img src={item.photoUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -183,7 +195,7 @@ export default function ItemDetail() {
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     const val = (e.target as HTMLInputElement).value;
-                    const found = mockItems.find(i => i.barcode === val);
+                    const found = allItems.find(i => i.barcode === val);
                     if (found) navigate(`/items/${found.id}`);
                   }
                 }}

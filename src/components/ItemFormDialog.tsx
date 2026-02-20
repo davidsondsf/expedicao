@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Upload, ImageIcon, Loader2 } from 'lucide-react';
-import { mockCategories } from '@/data/mockData';
 import type { Item, ItemCondition } from '@/types';
+import { useCategories } from '@/hooks/useCategories';
 import { useItemPhotoUpload } from '@/hooks/useItemPhotoUpload';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +34,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   item: Item | null;
-  onSave: (data: FormData & { photoUrl?: string }) => void;
+  onSave: (data: FormData & { photoUrl?: string }) => Promise<void> | void;
 }
 
 const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
@@ -46,6 +46,7 @@ const Field = ({ label, error, children }: { label: string; error?: string; chil
 );
 
 export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
+  const { data: categories = [] } = useCategories();
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -217,7 +218,7 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
             <Field label="Categoria *" error={errors.categoryId?.message}>
               <select {...register('categoryId')} className="input-search h-9 w-full">
                 <option value="">Selecionar...</option>
-                {mockCategories.filter(c => c.active).map(c => (
+                {categories.filter(c => c.active).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
