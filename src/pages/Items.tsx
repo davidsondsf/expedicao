@@ -96,12 +96,19 @@ export default function Items() {
                 {filtered.map(item => (
                   <tr key={item.id}>
                     <td>
-                      <div>
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.brand} — {item.model}</p>
-                        {item.serialNumber && (
-                          <p className="text-xs font-mono text-muted-foreground">{item.serialNumber}</p>
+                      <div className="flex items-center gap-2.5">
+                        {item.photoUrl ? (
+                          <img src={item.photoUrl} alt={item.name} className="w-9 h-9 rounded object-cover border border-border flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded bg-muted border border-border flex-shrink-0 flex items-center justify-center text-muted-foreground/40 text-[10px]">sem foto</div>
                         )}
+                        <div>
+                          <p className="text-sm font-medium">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.brand} — {item.model}</p>
+                          {item.serialNumber && (
+                            <p className="text-xs font-mono text-muted-foreground">{item.serialNumber}</p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td>
@@ -177,7 +184,7 @@ export default function Items() {
           if (editing) {
             setItems(prev => prev.map(i => i.id === editing.id ? { ...i, ...data } : i));
           } else {
-          const cat = mockCategories.find(c => c.id === data.categoryId);
+            const cat = mockCategories.find(c => c.id === data.categoryId);
             const newItem: Item = {
               id: `i${Date.now()}`,
               name: data.name ?? '',
@@ -190,6 +197,8 @@ export default function Items() {
               categoryId: data.categoryId ?? '',
               barcode: `GCP-${new Date().getFullYear()}-${String(items.length + 1).padStart(5, '0')}`,
               active: true,
+              condition: data.condition,
+              photoUrl: data.photoUrl,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               category: cat,

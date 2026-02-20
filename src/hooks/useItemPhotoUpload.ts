@@ -1,0 +1,34 @@
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+export function useItemPhotoUpload() {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const uploadPhoto = async (file: File, itemId: string): Promise<string | null> => {
+    setUploading(true);
+    setError(null);
+
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${itemId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('item-photos')
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('item-photos').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao fazer upload';
+      setError(msg);
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return { uploadPhoto, uploading, error };
+}
