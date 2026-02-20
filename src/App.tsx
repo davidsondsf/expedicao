@@ -11,6 +11,7 @@ import Items from "./pages/Items";
 import ItemDetail from "./pages/ItemDetail";
 import Categories from "./pages/Categories";
 import Movements from "./pages/Movements";
+import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/items/:id" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
             <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
