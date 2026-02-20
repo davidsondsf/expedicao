@@ -2,8 +2,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/AppLayout';
 import { mockItems, mockMovements } from '@/data/mockData';
 import Barcode from 'react-barcode';
-import { ArrowLeft, TrendingUp, TrendingDown, Package, MapPin, Tag, Hash } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Package, MapPin, Tag, Hash, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { ItemCondition } from '@/types';
+
+const CONDITION_MAP: Record<ItemCondition, { label: string; cls: string }> = {
+  new:     { label: 'Novo',       cls: 'bg-success/10 text-success border border-success/30' },
+  good:    { label: 'Bom',        cls: 'bg-primary/10 text-primary border border-primary/30' },
+  fair:    { label: 'Regular',    cls: 'bg-warning/10 text-warning border border-warning/30' },
+  poor:    { label: 'Ruim',       cls: 'bg-orange-400/10 text-orange-400 border border-orange-400/30' },
+  damaged: { label: 'Danificado', cls: 'bg-destructive/10 text-destructive border border-destructive/30' },
+};
 
 export default function ItemDetail() {
   const { id } = useParams();
@@ -29,6 +38,8 @@ export default function ItemDetail() {
   const stockStatus = item.quantity === 0 ? 'Sem Estoque' :
     item.quantity <= item.minQuantity ? 'Estoque Baixo' : 'OK';
 
+  const conditionInfo = item.condition ? CONDITION_MAP[item.condition] : null;
+
   return (
     <AppLayout title={`Item: ${item.name}`}>
       <div className="space-y-5 max-w-4xl">
@@ -44,18 +55,38 @@ export default function ItemDetail() {
           {/* Main info */}
           <div className="lg:col-span-2 space-y-4">
             <div className="stat-card">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold">{item.name}</h2>
-                  <p className="text-sm text-muted-foreground">{item.brand} — {item.model}</p>
+              <div className="flex items-start gap-4 mb-4">
+                {/* Foto */}
+                <div className="w-20 h-20 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {item.photoUrl ? (
+                    <img src={item.photoUrl} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
+                  )}
                 </div>
-                <span className={cn(
-                  'text-xs font-medium px-2 py-1 rounded-full',
-                  item.quantity === 0 ? 'badge-exit' :
-                    item.quantity <= item.minQuantity ? 'badge-warning' : 'badge-entry'
-                )}>
-                  {stockStatus}
-                </span>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div>
+                      <h2 className="text-xl font-bold">{item.name}</h2>
+                      <p className="text-sm text-muted-foreground">{item.brand} — {item.model}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {conditionInfo && (
+                        <span className={cn('text-xs font-medium px-2 py-1 rounded-full', conditionInfo.cls)}>
+                          {conditionInfo.label}
+                        </span>
+                      )}
+                      <span className={cn(
+                        'text-xs font-medium px-2 py-1 rounded-full',
+                        item.quantity === 0 ? 'badge-exit' :
+                          item.quantity <= item.minQuantity ? 'badge-warning' : 'badge-entry'
+                      )}>
+                        {stockStatus}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

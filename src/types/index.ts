@@ -33,9 +33,13 @@ export interface Item {
   categoryId: string;
   category?: Category;
   active: boolean;
+  condition?: ItemCondition;
+  photoUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type ItemCondition = 'new' | 'good' | 'fair' | 'poor' | 'damaged';
 
 export type MovementType = 'ENTRY' | 'EXIT';
 
