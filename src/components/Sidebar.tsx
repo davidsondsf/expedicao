@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ArrowLeftRight,
-  ChevronLeft, ChevronRight, Warehouse
+  ChevronLeft, ChevronRight, Warehouse, ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,10 +14,14 @@ const navItems = [
   { label: 'Movimentações', to: '/movements', icon: ArrowLeftRight },
 ];
 
+const adminItems = [
+  { label: 'Usuários', to: '/admin/users', icon: ShieldCheck },
+];
+
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <aside
@@ -45,7 +49,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-2 space-y-0.5">
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {navItems.map(({ label, to, icon: Icon }) => {
           const isActive = to === '/'
             ? location.pathname === '/'
@@ -67,6 +71,36 @@ export function Sidebar() {
             </NavLink>
           );
         })}
+
+        {/* Admin section */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <p className="animate-fade-in px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                Admin
+              </p>
+            )}
+            {collapsed && <div className="my-2 border-t border-sidebar-border" />}
+            {adminItems.map(({ label, to, icon: Icon }) => {
+              const isActive = location.pathname.startsWith(to);
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={cn(
+                    'nav-item',
+                    isActive && 'active',
+                    collapsed && 'justify-center px-2'
+                  )}
+                  title={collapsed ? label : undefined}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span className="animate-fade-in">{label}</span>}
+                </NavLink>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User + Collapse */}
