@@ -14,6 +14,130 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      items: {
+        Row: {
+          active: boolean
+          barcode: string
+          brand: string
+          category_id: string | null
+          condition: Database["public"]["Enums"]["item_condition"] | null
+          created_at: string
+          id: string
+          location: string
+          min_quantity: number
+          model: string
+          name: string
+          photo_url: string | null
+          quantity: number
+          serial_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          barcode: string
+          brand: string
+          category_id?: string | null
+          condition?: Database["public"]["Enums"]["item_condition"] | null
+          created_at?: string
+          id?: string
+          location: string
+          min_quantity?: number
+          model: string
+          name: string
+          photo_url?: string | null
+          quantity?: number
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          barcode?: string
+          brand?: string
+          category_id?: string | null
+          condition?: Database["public"]["Enums"]["item_condition"] | null
+          created_at?: string
+          id?: string
+          location?: string
+          min_quantity?: number
+          model?: string
+          name?: string
+          photo_url?: string | null
+          quantity?: number
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movements: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          note: string | null
+          quantity: number
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          note?: string | null
+          quantity: number
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          note?: string | null
+          quantity?: number
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
