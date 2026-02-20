@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
-import { mockMovements, mockItems, mockUsers } from '@/data/mockData';
-import type { Movement, MovementType } from '@/types';
-import { TrendingUp, TrendingDown, Plus, Search } from 'lucide-react';
+import type { MovementType } from '@/types';
+import { TrendingUp, TrendingDown, Plus, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
+import { useMovements, useCreateMovement } from '@/hooks/useMovements';
+import { useItems } from '@/hooks/useItems';
+import { useToast } from '@/hooks/use-toast';
 
 const schema = z.object({
   type: z.enum(['ENTRY', 'EXIT']),
@@ -19,11 +21,20 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-function MovementDialog({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (d: FormData) => void }) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+function MovementDialog({
+  open, onClose, onSave, items, loading,
+}: {
+  open: boolean; onClose: () => void;
+  onSave: (d: FormData) => Promise<void>;
+  items: { id: string; name: string; quantity: number }[];
+  loading: boolean;
+}) {
+  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { type: 'ENTRY', quantity: 1 },
   });
+
+  const handleClose = () => { reset(); onClose(); };
 
   if (!open) return null;
 
@@ -31,11 +42,11 @@ function MovementDialog({ open, onClose, onSave }: { open: boolean; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative w-full max-w-md rounded-lg border border-border bg-card shadow-lg animate-fade-in">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-base font-semibold">Registrar Movimentação</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
         <form onSubmit={handleSubmit(onSave)} className="p-5 space-y-4">
           <div>
@@ -59,7 +70,7 @@ function MovementDialog({ open, onClose, onSave }: { open: boolean; onClose: () 
             <label className="block text-xs font-medium text-muted-foreground mb-1">Item *</label>
             <select {...register('itemId')} className="input-search h-9 w-full">
               <option value="">Selecionar item...</option>
-              {mockItems.filter(i => i.active).map(i => (
+              {items.map(i => (
                 <option key={i.id} value={i.id}>{i.name} (estoque: {i.quantity})</option>
               ))}
             </select>
@@ -75,10 +86,11 @@ function MovementDialog({ open, onClose, onSave }: { open: boolean; onClose: () 
             <textarea {...register('note')} className="input-search w-full h-20 py-2 resize-none" placeholder="Motivo ou observação..." />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="h-9 px-4 rounded-md border border-border text-sm text-muted-foreground hover:bg-muted">
+            <button type="button" onClick={handleClose} className="h-9 px-4 rounded-md border border-border text-sm text-muted-foreground hover:bg-muted">
               Cancelar
             </button>
-            <button type="submit" className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90">
+            <button type="submit" disabled={loading} className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 flex items-center gap-2 disabled:opacity-60">
+              {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Registrar
             </button>
           </div>
@@ -89,11 +101,15 @@ function MovementDialog({ open, onClose, onSave }: { open: boolean; onClose: () 
 }
 
 export default function Movements() {
-  const [movements, setMovements] = useState<Movement[]>(mockMovements);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<MovementType | 'ALL'>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
+
+  const { data: movements = [], isLoading } = useMovements();
+  const { data: items = [] } = useItems();
+  const createMovement = useCreateMovement();
 
   const filtered = movements.filter(m => {
     const matchSearch = m.item?.name.toLowerCase().includes(search.toLowerCase()) ?? false;
@@ -101,30 +117,28 @@ export default function Movements() {
     return matchSearch && matchType;
   });
 
-  const handleSave = (data: FormData) => {
-    const item = mockItems.find(i => i.id === data.itemId);
+  const handleSave = async (data: FormData) => {
+    const item = items.find(i => i.id === data.itemId);
     if (!item) return;
 
-    if (data.type === 'EXIT' && data.quantity > item.quantity) {
-      alert(`Estoque insuficiente! Disponível: ${item.quantity}`);
-      return;
+    try {
+      await createMovement.mutateAsync({
+        type: data.type,
+        quantity: data.quantity,
+        itemId: data.itemId,
+        userId: user?.id ?? '',
+        note: data.note,
+        currentStock: item.quantity,
+      });
+      setDialogOpen(false);
+      toast({ title: 'Movimentação registrada com sucesso!' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao registrar movimentação';
+      toast({ title: msg, variant: 'destructive' });
     }
-
-    const mov: Movement = {
-      id: `m${Date.now()}`,
-      type: data.type,
-      quantity: data.quantity,
-      itemId: data.itemId,
-      userId: user?.id ?? 'u1',
-      note: data.note,
-      createdAt: new Date().toISOString(),
-      item,
-      user: mockUsers.find(u => u.id === (user?.id ?? 'u1')),
-    };
-    setMovements(prev => [mov, ...prev]);
-    item.quantity += data.type === 'ENTRY' ? data.quantity : -data.quantity;
-    setDialogOpen(false);
   };
+
+  const activeItems = items.filter(i => i.active);
 
   return (
     <AppLayout title="Movimentações">
@@ -199,6 +213,14 @@ export default function Movements() {
                 </tr>
               </thead>
               <tbody>
+                {isLoading && (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin opacity-40" />
+                      Carregando...
+                    </td>
+                  </tr>
+                )}
                 {filtered.map(mov => (
                   <tr key={mov.id}>
                     <td>
@@ -227,7 +249,7 @@ export default function Movements() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {!isLoading && filtered.length === 0 && (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-muted-foreground">
                       Nenhuma movimentação encontrada
@@ -240,7 +262,13 @@ export default function Movements() {
         </div>
       </div>
 
-      <MovementDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSave={handleSave} />
+      <MovementDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSave={handleSave}
+        items={activeItems}
+        loading={createMovement.isPending}
+      />
     </AppLayout>
   );
 }

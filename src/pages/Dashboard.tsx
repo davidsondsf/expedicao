@@ -1,49 +1,54 @@
 import { AppLayout } from '@/components/AppLayout';
-import { mockDashboard } from '@/data/mockData';
-import { Package, Tag, ArrowLeftRight, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Package, Tag, ArrowLeftRight, AlertTriangle, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-
-const stats = [
-  {
-    label: 'Itens Cadastrados',
-    value: mockDashboard.totalItems,
-    icon: Package,
-    color: 'text-info',
-    bg: 'bg-info/10',
-  },
-  {
-    label: 'Categorias Ativas',
-    value: mockDashboard.totalCategories,
-    icon: Tag,
-    color: 'text-success',
-    bg: 'bg-success/10',
-  },
-  {
-    label: 'Movimentações',
-    value: mockDashboard.totalMovements,
-    icon: ArrowLeftRight,
-    color: 'text-primary',
-    bg: 'bg-primary/10',
-  },
-  {
-    label: 'Estoque Baixo',
-    value: mockDashboard.lowStockItems.length,
-    icon: AlertTriangle,
-    color: 'text-destructive',
-    bg: 'bg-destructive/10',
-  },
-];
-
-const chartData = mockDashboard.chartData.filter((_, i) => i % 3 === 0);
+import { useItems } from '@/hooks/useItems';
+import { useCategories } from '@/hooks/useCategories';
+import { useMovements } from '@/hooks/useMovements';
+import { useMemo } from 'react';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const { data: items = [], isLoading: loadingItems } = useItems();
+  const { data: categories = [] } = useCategories();
+  const { data: movements = [], isLoading: loadingMovements } = useMovements();
+
+  const activeItems = items.filter(i => i.active);
+  const activeCategories = categories.filter(c => c.active);
+  const lowStockItems = activeItems.filter(i => i.quantity <= i.minQuantity);
+
+  // Build chart data from real movements (last 30 days)
+  const chartData = useMemo(() => {
+    const days: { date: string; entries: number; exits: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const dayStr = d.toISOString().split('T')[0];
+      const dayMovements = movements.filter(m => m.createdAt.startsWith(dayStr));
+      days.push({
+        date: label,
+        entries: dayMovements.filter(m => m.type === 'ENTRY').reduce((s, m) => s + m.quantity, 0),
+        exits: dayMovements.filter(m => m.type === 'EXIT').reduce((s, m) => s + m.quantity, 0),
+      });
+    }
+    return days.filter((_, i) => i % 3 === 0);
+  }, [movements]);
+
+  const stats = [
+    { label: 'Itens Cadastrados', value: activeItems.length, icon: Package, color: 'text-info', bg: 'bg-info/10' },
+    { label: 'Categorias Ativas', value: activeCategories.length, icon: Tag, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'Movimentações', value: movements.length, icon: ArrowLeftRight, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Estoque Baixo', value: lowStockItems.length, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
+  ];
+
+  const recentMovements = movements.slice(0, 10);
 
   return (
     <AppLayout title="Dashboard">
@@ -63,7 +68,11 @@ export default function Dashboard() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                  <p className="text-3xl font-bold text-foreground">{value}</p>
+                  {loadingItems ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mt-1" />
+                  ) : (
+                    <p className="text-3xl font-bold text-foreground">{value}</p>
+                  )}
                 </div>
                 <div className={cn('rounded-md p-2', bg)}>
                   <Icon className={cn('h-5 w-5', color)} />
@@ -116,9 +125,11 @@ export default function Dashboard() {
               Estoque Crítico
             </h3>
             <div className="space-y-2">
-              {mockDashboard.lowStockItems.length === 0 ? (
+              {loadingItems ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
+              ) : lowStockItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum item em estoque crítico.</p>
-              ) : mockDashboard.lowStockItems.map(item => (
+              ) : lowStockItems.map(item => (
                 <button
                   key={item.id}
                   onClick={() => navigate(`/items/${item.id}`)}
@@ -143,42 +154,55 @@ export default function Dashboard() {
         {/* Recent Movements */}
         <div className="stat-card">
           <h3 className="text-sm font-semibold mb-4">Últimas Movimentações</h3>
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Item</th>
-                  <th>Qtd</th>
-                  <th>Responsável</th>
-                  <th>Nota</th>
-                  <th>Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockDashboard.recentMovements.map(mov => (
-                  <tr key={mov.id}>
-                    <td>
-                      <span className={mov.type === 'ENTRY' ? 'badge-entry' : 'badge-exit'}>
-                        {mov.type === 'ENTRY' ? (
-                          <><TrendingUp className="h-3 w-3 mr-1" />Entrada</>
-                        ) : (
-                          <><TrendingDown className="h-3 w-3 mr-1" />Saída</>
-                        )}
-                      </span>
-                    </td>
-                    <td className="text-sm">{mov.item?.name}</td>
-                    <td className="font-mono text-sm font-semibold">{mov.quantity}</td>
-                    <td className="text-sm text-muted-foreground">{mov.user?.name}</td>
-                    <td className="text-sm text-muted-foreground max-w-[200px] truncate">{mov.note || '-'}</td>
-                    <td className="text-xs text-muted-foreground font-mono">
-                      {new Date(mov.createdAt).toLocaleDateString('pt-BR')}
-                    </td>
+          {loadingMovements ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Item</th>
+                    <th>Qtd</th>
+                    <th>Responsável</th>
+                    <th>Nota</th>
+                    <th>Data</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentMovements.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                        Nenhuma movimentação registrada.
+                      </td>
+                    </tr>
+                  )}
+                  {recentMovements.map(mov => (
+                    <tr key={mov.id}>
+                      <td>
+                        <span className={mov.type === 'ENTRY' ? 'badge-entry' : 'badge-exit'}>
+                          {mov.type === 'ENTRY' ? (
+                            <><TrendingUp className="h-3 w-3 mr-1" />Entrada</>
+                          ) : (
+                            <><TrendingDown className="h-3 w-3 mr-1" />Saída</>
+                          )}
+                        </span>
+                      </td>
+                      <td className="text-sm">{mov.item?.name}</td>
+                      <td className="font-mono text-sm font-semibold">{mov.quantity}</td>
+                      <td className="text-sm text-muted-foreground">{mov.user?.name}</td>
+                      <td className="text-sm text-muted-foreground max-w-[200px] truncate">{mov.note || '-'}</td>
+                      <td className="text-xs text-muted-foreground font-mono">
+                        {new Date(mov.createdAt).toLocaleDateString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>
