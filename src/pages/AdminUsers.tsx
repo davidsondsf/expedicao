@@ -1,151 +1,114 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/AppLayout';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ShieldOff, User, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useAdminUsers, type ManagedUser } from '@/hooks/useAdminUsers';
+import { UserFormDialog, type UserFormData } from '@/components/UserFormDialog';
+import { ResetPasswordDialog } from '@/components/ResetPasswordDialog';
+import {
+  Shield, User, RefreshCw, AlertTriangle, Plus, Pencil,
+  KeyRound, UserCheck, UserX, Eye
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
-type UserRole = 'ADMIN' | 'OPERATOR';
-
-interface ManagedUser {
-  user_id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  created_at: string;
-}
+const ROLE_LABELS: Record<string, { label: string; class: string }> = {
+  ADMIN: { label: 'Admin', class: 'badge-admin' },
+  OPERATOR: { label: 'Operador', class: 'badge-operator' },
+  VIEWER: { label: 'Visualizador', class: 'badge-warning' },
+};
 
 export default function AdminUsers() {
   const { user: currentUser, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const { users, isLoading, loadUsers, createUser, updateUser, resetPassword } = useAdminUsers();
 
-  // Redirect non-admins
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<ManagedUser | null>(null);
+
   useEffect(() => {
     if (!isAdmin) navigate('/');
   }, [isAdmin, navigate]);
-
-  const loadUsers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('user_id, name, email, created_at')
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      // Fetch roles for all users
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) throw rolesError;
-
-      const roleMap = new Map(roles?.map(r => [r.user_id, r.role as UserRole]) ?? []);
-
-      const merged: ManagedUser[] = (profiles ?? []).map(p => ({
-        user_id: p.user_id,
-        name: p.name,
-        email: p.email,
-        created_at: p.created_at,
-        role: roleMap.get(p.user_id) ?? 'OPERATOR',
-      }));
-
-      setUsers(merged);
-    } catch (err) {
-      toast({ title: 'Erro ao carregar usuários', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
 
   useEffect(() => {
     if (isAdmin) loadUsers();
   }, [isAdmin, loadUsers]);
 
-  const toggleRole = async (targetUser: ManagedUser) => {
-    if (targetUser.user_id === currentUser?.id) {
-      toast({ title: 'Você não pode alterar seu próprio papel', variant: 'destructive' });
-      return;
-    }
+  const handleCreate = async (data: UserFormData) => {
+    await createUser({ name: data.name, email: data.email, password: data.password, role: data.role });
+  };
 
-    setUpdatingId(targetUser.user_id);
-    const newRole: UserRole = targetUser.role === 'ADMIN' ? 'OPERATOR' : 'ADMIN';
-
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', targetUser.user_id);
-
-      if (error) throw error;
-
-      setUsers(prev =>
-        prev.map(u => u.user_id === targetUser.user_id ? { ...u, role: newRole } : u)
-      );
-
-      toast({
-        title: newRole === 'ADMIN'
-          ? `${targetUser.name} promovido a ADMIN`
-          : `${targetUser.name} rebaixado a OPERATOR`,
-      });
-    } catch {
-      toast({ title: 'Erro ao atualizar papel', variant: 'destructive' });
-    } finally {
-      setUpdatingId(null);
+  const handleEdit = async (data: UserFormData) => {
+    if (!editingUser) return;
+    const changes: Record<string, unknown> = {};
+    if (data.name !== editingUser.name) changes.name = data.name;
+    if (data.role !== editingUser.role) changes.role = data.role;
+    if (Object.keys(changes).length > 0) {
+      await updateUser(editingUser.user_id, changes as { name?: string; role?: import('@/types').UserRole });
     }
   };
 
-  const adminCount = users.filter(u => u.role === 'ADMIN').length;
-  const operatorCount = users.filter(u => u.role === 'OPERATOR').length;
+  const toggleActive = async (u: ManagedUser) => {
+    if (u.user_id === currentUser?.id) return;
+    await updateUser(u.user_id, { active: !u.active });
+  };
+
+  const adminCount = users.filter(u => u.role === 'ADMIN' && u.active).length;
 
   return (
     <AppLayout title="Administração de Usuários">
       <div className="space-y-6">
-        <div className="page-header">
+        <div className="page-header flex-row items-center justify-between">
           <div>
             <h2 className="page-title">Gerenciar Usuários</h2>
-            <p className="page-subtitle">Visualize e gerencie os papéis dos usuários do sistema</p>
+            <p className="page-subtitle">Crie, edite e gerencie os papéis e acessos</p>
           </div>
-          <button
-            onClick={loadUsers}
-            disabled={isLoading}
-            className="flex items-center gap-2 h-9 px-3 rounded-md border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
-            Atualizar
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadUsers}
+              disabled={isLoading}
+              className="flex items-center gap-2 h-9 px-3 rounded-md border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+              Atualizar
+            </button>
+            <button
+              onClick={() => { setEditingUser(null); setFormOpen(true); }}
+              className="flex items-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="h-4 w-4" />
+              Novo Usuário
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="stat-card">
-            <p className="text-xs text-muted-foreground mb-1">Total de usuários</p>
+            <p className="text-xs text-muted-foreground mb-1">Total</p>
             <p className="text-3xl font-bold text-foreground">{users.length}</p>
           </div>
           <div className="stat-card">
-            <p className="text-xs text-muted-foreground mb-1">Administradores</p>
-            <p className="text-3xl font-bold text-primary">{adminCount}</p>
+            <p className="text-xs text-muted-foreground mb-1">Admins</p>
+            <p className="text-3xl font-bold text-primary">{users.filter(u => u.role === 'ADMIN').length}</p>
           </div>
           <div className="stat-card">
             <p className="text-xs text-muted-foreground mb-1">Operadores</p>
-            <p className="text-3xl font-bold" style={{ color: 'hsl(var(--info))' }}>{operatorCount}</p>
+            <p className="text-3xl font-bold" style={{ color: 'hsl(var(--info))' }}>{users.filter(u => u.role === 'OPERATOR').length}</p>
+          </div>
+          <div className="stat-card">
+            <p className="text-xs text-muted-foreground mb-1">Visualizadores</p>
+            <p className="text-3xl font-bold" style={{ color: 'hsl(var(--warning))' }}>{users.filter(u => u.role === 'VIEWER').length}</p>
           </div>
         </div>
 
-        {/* Warning: last admin */}
         {adminCount <= 1 && (
-          <div className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning/10 px-4 py-3"
+          <div className="flex items-start gap-3 rounded-md border px-4 py-3"
             style={{ borderColor: 'hsl(var(--warning) / 0.3)', background: 'hsl(var(--warning) / 0.08)' }}>
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'hsl(var(--warning))' }} />
             <p className="text-sm" style={{ color: 'hsl(var(--warning))' }}>
-              Há apenas <strong>{adminCount}</strong> administrador no sistema. Certifique-se de manter pelo menos um admin ativo.
+              Há apenas <strong>{adminCount}</strong> admin ativo. Mantenha pelo menos um.
             </p>
           </div>
         )}
@@ -169,67 +132,78 @@ export default function AdminUsers() {
                     <th>Usuário</th>
                     <th>Email</th>
                     <th>Papel</th>
+                    <th>Status</th>
                     <th>Cadastro</th>
-                    <th className="text-right">Ação</th>
+                    <th className="text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map(u => {
                     const isCurrentUser = u.user_id === currentUser?.id;
-                    const isUpdating = updatingId === u.user_id;
+                    const roleInfo = ROLE_LABELS[u.role] ?? ROLE_LABELS.OPERATOR;
                     return (
-                      <tr key={u.user_id}>
+                      <tr key={u.user_id} className={cn(!u.active && 'opacity-50')}>
                         <td>
                           <div className="flex items-center gap-2">
                             <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              {u.role === 'ADMIN' ? <Shield className="h-3.5 w-3.5 text-primary" /> :
+                               u.role === 'VIEWER' ? <Eye className="h-3.5 w-3.5 text-muted-foreground" /> :
+                               <User className="h-3.5 w-3.5 text-muted-foreground" />}
                             </div>
                             <span className="font-medium text-sm">
                               {u.name}
-                              {isCurrentUser && (
-                                <span className="ml-1.5 text-xs text-muted-foreground font-normal">(você)</span>
-                              )}
+                              {isCurrentUser && <span className="ml-1.5 text-xs text-muted-foreground font-normal">(você)</span>}
                             </span>
                           </div>
                         </td>
                         <td className="text-sm text-muted-foreground font-mono">{u.email}</td>
                         <td>
+                          <span className={cn(roleInfo.class)}>{roleInfo.label}</span>
+                        </td>
+                        <td>
                           <span className={cn(
-                            'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-semibold',
-                            u.role === 'ADMIN'
-                              ? 'bg-primary/10 text-primary'
-                              : 'text-info'
-                          )}
-                            style={u.role !== 'ADMIN' ? { background: 'hsl(var(--info) / 0.1)', color: 'hsl(var(--info))' } : {}}>
-                            {u.role === 'ADMIN'
-                              ? <><Shield className="h-3 w-3" />ADMIN</>
-                              : <><User className="h-3 w-3" />OPERATOR</>}
+                            'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium',
+                            u.active
+                              ? 'bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]'
+                              : 'bg-destructive/15 text-destructive'
+                          )}>
+                            {u.active ? <><UserCheck className="h-3 w-3" />Ativo</> : <><UserX className="h-3 w-3" />Inativo</>}
                           </span>
                         </td>
                         <td className="text-xs text-muted-foreground font-mono">
                           {new Date(u.created_at).toLocaleDateString('pt-BR')}
                         </td>
                         <td className="text-right">
-                          <button
-                            onClick={() => toggleRole(u)}
-                            disabled={isUpdating || isCurrentUser}
-                            title={isCurrentUser ? 'Não é possível alterar seu próprio papel' : undefined}
-                            className={cn(
-                              'inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border transition-colors',
-                              'disabled:opacity-40 disabled:cursor-not-allowed',
-                              u.role === 'ADMIN'
-                                ? 'border-destructive/30 text-destructive hover:bg-destructive/10'
-                                : 'border-primary/30 text-primary hover:bg-primary/10'
-                            )}
-                          >
-                            {isUpdating ? (
-                              <RefreshCw className="h-3 w-3 animate-spin" />
-                            ) : u.role === 'ADMIN' ? (
-                              <><ShieldOff className="h-3 w-3" />Rebaixar</>
-                            ) : (
-                              <><Shield className="h-3 w-3" />Promover</>
-                            )}
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => { setEditingUser(u); setFormOpen(true); }}
+                              disabled={isCurrentUser}
+                              title="Editar"
+                              className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { setResetTarget(u); setResetOpen(true); }}
+                              title="Redefinir senha"
+                              className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => toggleActive(u)}
+                              disabled={isCurrentUser}
+                              title={u.active ? 'Inativar' : 'Ativar'}
+                              className={cn(
+                                'h-8 px-2 flex items-center gap-1 rounded-md text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+                                u.active
+                                  ? 'border-destructive/30 text-destructive hover:bg-destructive/10'
+                                  : 'border-[hsl(var(--success)/0.3)] text-[hsl(var(--success))] hover:bg-[hsl(var(--success)/0.1)]'
+                              )}
+                            >
+                              {u.active ? <><UserX className="h-3 w-3" />Inativar</> : <><UserCheck className="h-3 w-3" />Ativar</>}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -240,6 +214,20 @@ export default function AdminUsers() {
           )}
         </div>
       </div>
+
+      <UserFormDialog
+        open={formOpen}
+        onClose={() => { setFormOpen(false); setEditingUser(null); }}
+        onSubmit={editingUser ? handleEdit : handleCreate}
+        user={editingUser}
+      />
+
+      <ResetPasswordDialog
+        open={resetOpen}
+        onClose={() => { setResetOpen(false); setResetTarget(null); }}
+        onSubmit={pw => resetPassword(resetTarget!.user_id, pw)}
+        userName={resetTarget?.name ?? ''}
+      />
     </AppLayout>
   );
 }

@@ -4,9 +4,9 @@ const now = new Date();
 const daysAgo = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
 
 export const mockUsers: User[] = [
-  { id: 'u1', name: 'Admin Galpão', email: 'admin@galpaocopycentro.com', role: 'ADMIN', createdAt: daysAgo(90) },
-  { id: 'u2', name: 'João Operador', email: 'joao@galpaocopycentro.com', role: 'OPERATOR', createdAt: daysAgo(60) },
-  { id: 'u3', name: 'Maria Silva', email: 'maria@galpaocopycentro.com', role: 'OPERATOR', createdAt: daysAgo(30) },
+  { id: 'u1', name: 'Admin Galpão', email: 'admin@galpaocopycentro.com', role: 'ADMIN', active: true, createdAt: daysAgo(90) },
+  { id: 'u2', name: 'João Operador', email: 'joao@galpaocopycentro.com', role: 'OPERATOR', active: true, createdAt: daysAgo(60) },
+  { id: 'u3', name: 'Maria Silva', email: 'maria@galpaocopycentro.com', role: 'OPERATOR', active: true, createdAt: daysAgo(30) },
 ];
 
 export const mockCategories: Category[] = [

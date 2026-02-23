@@ -1,10 +1,11 @@
-export type UserRole = 'ADMIN' | 'OPERATOR';
+export type UserRole = 'ADMIN' | 'OPERATOR' | 'VIEWER';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  active: boolean;
   createdAt: string;
 }
 
@@ -75,7 +76,6 @@ export interface LoginDto {
   password: string;
 }
 
-
 export interface CreateItemDto {
   name: string;
   brand: string;
@@ -102,3 +102,52 @@ export interface ApiResponse<T> {
   data: T;
   message?: string;
 }
+
+export interface AuditLog {
+  id: string;
+  user_id: string;
+  user_email: string | null;
+  user_name: string | null;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+// Permission map per role
+export const ROLE_PERMISSIONS = {
+  ADMIN: {
+    canCreateItems: true,
+    canEditItems: true,
+    canDeleteItems: true,
+    canCreateMovements: true,
+    canManageCategories: true,
+    canManageUsers: true,
+    canViewAuditLogs: true,
+    canExport: true,
+  },
+  OPERATOR: {
+    canCreateItems: true,
+    canEditItems: true,
+    canDeleteItems: false,
+    canCreateMovements: true,
+    canManageCategories: false,
+    canManageUsers: false,
+    canViewAuditLogs: false,
+    canExport: true,
+  },
+  VIEWER: {
+    canCreateItems: false,
+    canEditItems: false,
+    canDeleteItems: false,
+    canCreateMovements: false,
+    canManageCategories: false,
+    canManageUsers: false,
+    canViewAuditLogs: false,
+    canExport: false,
+  },
+} as const;
+
+export type Permission = keyof typeof ROLE_PERMISSIONS.ADMIN;
