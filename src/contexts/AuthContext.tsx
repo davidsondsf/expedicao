@@ -53,32 +53,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Listen to auth state changes first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Listen to auth state changes — do NOT await inside the callback (deadlock risk with Supabase lock)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        try {
-          const authUser = await buildAuthUser(session.user, session);
-          setUser(authUser);
-        } catch {
-          setUser(null);
-        }
+        // Use setTimeout to break out of the Supabase internal lock
+        setTimeout(async () => {
+          try {
+            const authUser = await buildAuthUser(session.user, session);
+            setUser(authUser);
+          } catch {
+            setUser(null);
+          }
+          setIsLoading(false);
+        }, 0);
       } else {
         setUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     // Then get current session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        try {
-          const authUser = await buildAuthUser(session.user, session);
-          setUser(authUser);
-        } catch {
-          setUser(null);
-        }
+        buildAuthUser(session.user, session)
+          .then(authUser => setUser(authUser))
+          .catch(() => setUser(null))
+          .finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();

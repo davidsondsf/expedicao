@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +14,7 @@ const loginSchema = z.object({
 type LoginData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
@@ -23,11 +23,16 @@ export default function Login() {
     resolver: zodResolver(loginSchema),
   });
 
+  // Redirect when user is authenticated (handles async buildAuthUser)
+  useEffect(() => {
+    if (user) navigate('/', { replace: true });
+  }, [user, navigate]);
+
   const onSubmit = async (data: LoginData) => {
     setError('');
     try {
       await login(data.email, data.password);
-      navigate('/');
+      // Don't navigate here — the useEffect above handles it after user is set
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao fazer login');
     }
