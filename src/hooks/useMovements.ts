@@ -30,7 +30,7 @@ function mapMovement(row: MovementRow): Movement {
     } : undefined,
     user: row.profiles ? {
       id: row.user_id, name: row.profiles.name, email: row.profiles.email,
-      role: 'OPERATOR', createdAt: '',
+      role: 'OPERATOR', active: true, createdAt: '',
     } : undefined,
   };
 }

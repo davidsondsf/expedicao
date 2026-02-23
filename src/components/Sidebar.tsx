@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ArrowLeftRight,
-  ChevronLeft, ChevronRight, Warehouse, ShieldCheck
+  ChevronLeft, ChevronRight, Warehouse, ShieldCheck, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,7 @@ const navItems = [
 
 const adminItems = [
   { label: 'Usuários', to: '/admin/users', icon: ShieldCheck },
+  { label: 'Logs de Auditoria', to: '/admin/audit', icon: FileText },
 ];
 
 export function Sidebar() {
@@ -111,15 +112,11 @@ export function Sidebar() {
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             <span className={cn(
               'mt-1 inline-block text-xs px-1.5 py-0.5 rounded font-medium',
-              user.role === 'ADMIN'
-                ? 'bg-primary/10 text-primary'
-                : 'text-info'
-            )}
-              style={user.role !== 'ADMIN' ? {
-                background: 'hsl(var(--info) / 0.1)',
-                color: 'hsl(var(--info))',
-              } : {}}>
-              {user.role}
+              user.role === 'ADMIN' ? 'badge-admin' :
+              user.role === 'VIEWER' ? 'badge-warning' :
+              'badge-operator'
+            )}>
+              {user.role === 'ADMIN' ? 'Admin' : user.role === 'VIEWER' ? 'Visualizador' : 'Operador'}
             </span>
           </div>
         )}

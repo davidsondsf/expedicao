@@ -43,6 +43,7 @@ async function buildAuthUser(supabaseUser: SupabaseUser, session: Session): Prom
     name: profile?.name ?? supabaseUser.user_metadata?.name ?? supabaseUser.email?.split('@')[0] ?? 'Usuário',
     email: profile?.email ?? supabaseUser.email ?? '',
     role,
+    active: true,
     createdAt: supabaseUser.created_at,
     token: session.access_token,
   };
@@ -56,11 +57,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen to auth state changes — do NOT await inside the callback (deadlock risk with Supabase lock)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        // Use setTimeout to break out of the Supabase internal lock
         setTimeout(async () => {
           try {
             const authUser = await buildAuthUser(session.user, session);
             setUser(authUser);
+            // Log login event
+            if (event === 'SIGNED_IN') {
+              await supabase.from('audit_logs').insert([{
+                user_id: session.user.id,
+                user_email: session.user.email,
+                user_name: authUser.name,
+                action: 'LOGIN',
+                entity: 'auth',
+                entity_id: session.user.id,
+              }]).then(() => {});
+            }
           } catch {
             setUser(null);
           }
