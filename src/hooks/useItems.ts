@@ -71,9 +71,9 @@ type CreateItemInput = {
 };
 
 async function nextBarcode(): Promise<string> {
-  const { count } = await supabase.from('items').select('*', { count: 'exact', head: true });
-  const num = String((count ?? 0) + 1).padStart(5, '0');
-  return `GCP-${new Date().getFullYear()}-${num}`;
+  const { data, error } = await supabase.rpc('generate_next_item_barcode');
+  if (error || !data) throw error ?? new Error('Erro ao gerar código de barras');
+  return data;
 }
 
 export function useCreateItem() {

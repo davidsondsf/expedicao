@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const navItems = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard },
@@ -15,15 +16,18 @@ const navItems = [
   { label: 'Maleta Técnica', to: '/maletas', icon: Briefcase },
 ];
 
-const adminItems = [
-  { label: 'Usuários', to: '/admin/users', icon: ShieldCheck },
-  { label: 'Logs de Auditoria', to: '/admin/audit', icon: FileText },
-];
-
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { canManageUsers, canViewAuditLogs } = usePermissions();
+
+  const adminNavItems = [
+    canManageUsers ? { label: 'Usuários', to: '/admin/users', icon: ShieldCheck } : null,
+    canViewAuditLogs ? { label: 'Logs de Auditoria', to: '/admin/audit', icon: FileText } : null,
+  ].filter(Boolean) as Array<{ label: string; to: string; icon: typeof ShieldCheck }>;
+
+  const hasAdminNav = adminNavItems.length > 0;
 
   return (
     <aside
@@ -34,7 +38,6 @@ export function Sidebar() {
       )}
       style={{ background: 'hsl(var(--sidebar-background))' }}
     >
-      {/* Logo */}
       <div className={cn(
         'flex items-center gap-3 px-4 py-4 border-b border-sidebar-border',
         collapsed && 'justify-center px-2'
@@ -50,7 +53,6 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
         {navItems.map(({ label, to, icon: Icon }) => {
           const isActive = to === '/'
@@ -74,8 +76,7 @@ export function Sidebar() {
           );
         })}
 
-        {/* Admin section */}
-        {isAdmin && (
+        {hasAdminNav && (
           <>
             {!collapsed && (
               <p className="animate-fade-in px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
@@ -83,7 +84,7 @@ export function Sidebar() {
               </p>
             )}
             {collapsed && <div className="my-2 border-t border-sidebar-border" />}
-            {adminItems.map(({ label, to, icon: Icon }) => {
+            {adminNavItems.map(({ label, to, icon: Icon }) => {
               const isActive = location.pathname.startsWith(to);
               return (
                 <NavLink
@@ -105,7 +106,6 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* User + Collapse */}
       <div className="border-t border-sidebar-border p-2 space-y-1">
         {!collapsed && user && (
           <div className="px-3 py-2 animate-fade-in">

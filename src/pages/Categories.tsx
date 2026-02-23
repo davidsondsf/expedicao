@@ -17,11 +17,8 @@ export default function Categories() {
   const updateCategory = useUpdateCategory();
 
   const handleAdd = async () => {
-    if (!canManageCategories) {
-      toast({ title: 'Sem permissao para gerenciar categorias', variant: 'destructive' });
-      return;
-    }
-    if (!newName.trim()) return;
+    if (!canManageCategories || !newName.trim()) return;
+
     try {
       await createCategory.mutateAsync(newName.trim());
       setNewName('');
@@ -32,11 +29,8 @@ export default function Categories() {
   };
 
   const handleEdit = async (id: string) => {
-    if (!canManageCategories) {
-      toast({ title: 'Sem permissao para gerenciar categorias', variant: 'destructive' });
-      return;
-    }
-    if (!editName.trim()) return;
+    if (!canManageCategories || !editName.trim()) return;
+
     try {
       await updateCategory.mutateAsync({ id, name: editName.trim() });
       setEditingId(null);
@@ -48,6 +42,7 @@ export default function Categories() {
 
   const handleDeactivate = async (id: string) => {
     if (!canManageCategories) return;
+
     try {
       await updateCategory.mutateAsync({ id, active: false });
     } catch {
@@ -57,6 +52,7 @@ export default function Categories() {
 
   const handleReactivate = async (id: string) => {
     if (!canManageCategories) return;
+
     try {
       await updateCategory.mutateAsync({ id, active: true });
     } catch {
@@ -75,28 +71,27 @@ export default function Categories() {
           <p className="page-subtitle">{active.length} categorias ativas</p>
         </div>
 
-        {canManageCategories && (
-          <div className="stat-card">
-            <h3 className="text-sm font-semibold mb-3">Nova Categoria</h3>
-            <div className="flex gap-3">
-              <input
-                className="input-search flex-1 h-9"
-                placeholder="Nome da categoria..."
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              />
-              <button
-                onClick={handleAdd}
-                disabled={!newName.trim() || createCategory.isPending}
-                className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {createCategory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Adicionar
-              </button>
-            </div>
+        <div className="stat-card">
+          <h3 className="text-sm font-semibold mb-3">Nova Categoria</h3>
+          <div className="flex gap-3">
+            <input
+              className="input-search flex-1 h-9"
+              placeholder="Nome da categoria..."
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              disabled={!canManageCategories}
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!canManageCategories || !newName.trim() || createCategory.isPending}
+              className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {createCategory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Adicionar
+            </button>
           </div>
-        )}
+        </div>
 
         <div className="stat-card">
           <h3 className="text-sm font-semibold mb-4">Categorias Ativas</h3>
@@ -111,7 +106,7 @@ export default function Categories() {
                   <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                     <Tag className="h-4 w-4 text-primary" />
                   </div>
-                  {canManageCategories && editingId === cat.id ? (
+                  {editingId === cat.id ? (
                     <input
                       className="input-search flex-1 h-8 text-sm"
                       value={editName}
@@ -121,6 +116,7 @@ export default function Categories() {
                         if (e.key === 'Escape') setEditingId(null);
                       }}
                       autoFocus
+                      disabled={!canManageCategories}
                     />
                   ) : (
                     <div className="flex-1 min-w-0">
@@ -130,41 +126,43 @@ export default function Categories() {
                       </p>
                     </div>
                   )}
-                  {canManageCategories && (
-                    <div className="flex items-center gap-1">
-                      {editingId === cat.id ? (
-                        <>
-                          <button
-                            onClick={() => handleEdit(cat.id)}
-                            className="h-7 w-7 flex items-center justify-center rounded text-success hover:bg-success/10 transition-colors"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
-                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
+                  <div className="flex items-center gap-1">
+                    {editingId === cat.id ? (
+                      <>
+                        <button
+                          onClick={() => handleEdit(cat.id)}
+                          disabled={!canManageCategories}
+                          className="h-7 w-7 flex items-center justify-center rounded text-success hover:bg-success/10 transition-colors disabled:opacity-40"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
+                          disabled={!canManageCategories}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        {canManageCategories && (
                           <button
                             onClick={() => handleDeactivate(cat.id)}
                             className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
               {active.length === 0 && (

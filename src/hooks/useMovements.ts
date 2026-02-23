@@ -50,8 +50,9 @@ async function fetchMovementsWithProfiles(itemId?: string) {
   if (error) throw error;
   const rows = (data ?? []) as unknown as MovementRow[];
 
+  // Fetch profiles for unique user_ids
   const userIds = [...new Set(rows.map(r => r.user_id))];
-  const profilesMap = new Map<string, ProfileRow>();
+  let profilesMap = new Map<string, ProfileRow>();
 
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
@@ -94,18 +95,38 @@ export function useCreateMovement() {
   return useMutation({
     mutationFn: async (input: CreateMovementInput) => {
       if (!input.userId) {
-        throw new Error('Usuario nao autenticado.');
+        throw new Error('Usuário não autenticado');
       }
 
-      const { error } = await (supabase.rpc as any)('register_movement', {
-        _item_id: input.itemId,
-        _user_id: input.userId,
-        _type: input.type,
-        _quantity: input.quantity,
-        _note: input.note ?? null,
-      });
+<<<<<<< HEAD
+      const newQty = input.type === 'ENTRY'
+        ? input.currentStock + input.quantity
+        : input.currentStock - input.quantity;
 
-      if (error) throw new Error(error.message);
+      const { error: movErr } = await supabase.from('movements').insert({
+        type: input.type,
+        quantity: input.quantity,
+        item_id: input.itemId,
+        user_id: input.userId,
+        note: input.note || null,
+      });
+      if (movErr) throw movErr;
+
+      const { error: itemErr } = await supabase
+        .from('items')
+        .update({ quantity: newQty })
+        .eq('id', input.itemId);
+      if (itemErr) throw itemErr;
+=======
+      const { error } = await supabase.rpc('create_movement_and_adjust_stock', {
+        p_item_id: input.itemId,
+        p_type: input.type,
+        p_quantity: input.quantity,
+        p_user_id: input.userId,
+        p_note: input.note || null,
+      });
+      if (error) throw error;
+>>>>>>> 5ae74a0 (fix: harden auth/storage and make stock operations atomic)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['movements'] });

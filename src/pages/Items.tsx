@@ -3,13 +3,12 @@ import { AppLayout } from '@/components/AppLayout';
 import { Plus, Search, Package, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { ItemFormDialog } from '@/components/ItemFormDialog';
 import { useItems, useCreateItem, useUpdateItem, useDeactivateItem } from '@/hooks/useItems';
 import { useCategories } from '@/hooks/useCategories';
 import { useToast } from '@/hooks/use-toast';
-import { usePermissions } from '@/hooks/usePermissions';
 import type { Item } from '@/types';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Items() {
   const [search, setSearch] = useState('');
@@ -17,7 +16,6 @@ export default function Items() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
   const { canCreateItems, canEditItems, canDeleteItems } = usePermissions();
   const { toast } = useToast();
 
@@ -36,6 +34,8 @@ export default function Items() {
   });
 
   const handleDeactivate = async (id: string) => {
+    if (!canDeleteItems) return;
+
     try {
       await deactivateItem.mutateAsync(id);
       toast({ title: 'Item desativado.' });
@@ -51,16 +51,13 @@ export default function Items() {
   };
 
   const handleSave = async (data: SaveData) => {
-    if ((!editing && !canCreateItems) || (editing && !canEditItems)) {
-      toast({ title: 'Sem permissao para esta acao', variant: 'destructive' });
-      return;
-    }
-
     try {
       if (editing) {
+        if (!canEditItems) return;
         await updateItem.mutateAsync({ id: editing.id, ...data });
         toast({ title: 'Item atualizado com sucesso!' });
       } else {
+        if (!canCreateItems) return;
         await createItem.mutateAsync(data);
         toast({ title: 'Item cadastrado com sucesso!' });
       }
@@ -80,18 +77,16 @@ export default function Items() {
             <h2 className="page-title">Itens do Estoque</h2>
             <p className="page-subtitle">{filtered.length} itens encontrados</p>
           </div>
-          {canCreateItems && (
-            <button
-              onClick={() => { setEditing(null); setDialogOpen(true); }}
-              className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              <Plus className="h-4 w-4" />
-              Novo Item
-            </button>
-          )}
+          <button
+            onClick={() => { setEditing(null); setDialogOpen(true); }}
+            disabled={!canCreateItems}
+            className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Item
+          </button>
         </div>
 
-        {/* Filters */}
         <div className="flex gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -114,7 +109,6 @@ export default function Items() {
           </select>
         </div>
 
-        {/* Table */}
         <div className="stat-card p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="data-table">
@@ -157,7 +151,7 @@ export default function Items() {
                         )}
                         <div>
                           <p className="text-sm font-medium">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{item.brand} — {item.model}</p>
+                          <p className="text-xs text-muted-foreground">{item.brand} - {item.model}</p>
                           {item.serialNumber && (
                             <p className="text-xs font-mono text-muted-foreground">{item.serialNumber}</p>
                           )}
@@ -203,16 +197,15 @@ export default function Items() {
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
-                        {canEditItems && (
-                          <button
-                            onClick={() => { setEditing(item); setDialogOpen(true); }}
-                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                            title="Editar"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {isAdmin && canDeleteItems && (
+                        <button
+                          onClick={() => { setEditing(item); setDialogOpen(true); }}
+                          disabled={!canEditItems}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Editar"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        {canDeleteItems && (
                           <button
                             onClick={() => handleDeactivate(item.id)}
                             className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
@@ -231,12 +224,14 @@ export default function Items() {
         </div>
       </div>
 
-      <ItemFormDialog
-        open={dialogOpen}
-        onClose={() => { setDialogOpen(false); setEditing(null); }}
-        item={editing}
-        onSave={handleSave}
-      />
+      {(canCreateItems || canEditItems) && (
+        <ItemFormDialog
+          open={dialogOpen}
+          onClose={() => { setDialogOpen(false); setEditing(null); }}
+          item={editing}
+          onSave={handleSave}
+        />
+      )}
     </AppLayout>
   );
 }
