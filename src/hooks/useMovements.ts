@@ -52,7 +52,7 @@ async function fetchMovementsWithProfiles(itemId?: string) {
 
   // Fetch profiles for unique user_ids
   const userIds = [...new Set(rows.map(r => r.user_id))];
-  let profilesMap = new Map<string, ProfileRow>();
+  const profilesMap = new Map<string, ProfileRow>();
 
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
