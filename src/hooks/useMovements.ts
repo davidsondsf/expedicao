@@ -9,10 +9,11 @@ type MovementRow = {
     id: string; name: string; brand: string; model: string;
     barcode: string; quantity: number; min_quantity: number;
   } | null;
-  profiles: { id: string; name: string; email: string } | null;
 };
 
-function mapMovement(row: MovementRow): Movement {
+type ProfileRow = { user_id: string; name: string; email: string };
+
+function mapMovement(row: MovementRow, profile?: ProfileRow): Movement {
   return {
     id: row.id,
     type: row.type as MovementType,
@@ -28,39 +29,55 @@ function mapMovement(row: MovementRow): Movement {
       serialNumber: undefined, location: '', categoryId: '',
       active: true, createdAt: '', updatedAt: '',
     } : undefined,
-    user: row.profiles ? {
-      id: row.user_id, name: row.profiles.name, email: row.profiles.email,
+    user: profile ? {
+      id: row.user_id, name: profile.name, email: profile.email,
       role: 'OPERATOR', active: true, createdAt: '',
     } : undefined,
   };
 }
 
+async function fetchMovementsWithProfiles(itemId?: string) {
+  let query = supabase
+    .from('movements')
+    .select('*, items(id, name, brand, model, barcode, quantity, min_quantity)')
+    .order('created_at', { ascending: false });
+
+  if (itemId) {
+    query = query.eq('item_id', itemId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as MovementRow[];
+
+  // Fetch profiles for unique user_ids
+  const userIds = [...new Set(rows.map(r => r.user_id))];
+  let profilesMap = new Map<string, ProfileRow>();
+
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, name, email')
+      .in('user_id', userIds);
+    for (const p of (profiles ?? []) as ProfileRow[]) {
+      profilesMap.set(p.user_id, p);
+    }
+  }
+
+  return rows.map(row => mapMovement(row, profilesMap.get(row.user_id)));
+}
+
 export function useMovements() {
   return useQuery({
     queryKey: ['movements'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('movements')
-        .select('*, items(id, name, brand, model, barcode, quantity, min_quantity), profiles(id, name, email)')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(row => mapMovement(row as unknown as MovementRow));
-    },
+    queryFn: () => fetchMovementsWithProfiles(),
   });
 }
 
 export function useItemMovements(itemId: string) {
   return useQuery({
     queryKey: ['movements', 'item', itemId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('movements')
-        .select('*, items(id, name, brand, model, barcode, quantity, min_quantity), profiles(id, name, email)')
-        .eq('item_id', itemId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map(row => mapMovement(row as unknown as MovementRow));
-    },
+    queryFn: () => fetchMovementsWithProfiles(itemId),
     enabled: !!itemId,
   });
 }
@@ -86,7 +103,6 @@ export function useCreateMovement() {
         ? input.currentStock + input.quantity
         : input.currentStock - input.quantity;
 
-      // Insert movement
       const { error: movErr } = await supabase.from('movements').insert({
         type: input.type,
         quantity: input.quantity,
@@ -96,7 +112,6 @@ export function useCreateMovement() {
       });
       if (movErr) throw movErr;
 
-      // Update item quantity
       const { error: itemErr } = await supabase
         .from('items')
         .update({ quantity: newQty })
