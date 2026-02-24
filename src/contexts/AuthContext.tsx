@@ -26,7 +26,7 @@ async function fetchUserRole(userId: string): Promise<UserRole> {
 async function fetchUserProfile(userId: string) {
   const { data } = await supabase
     .from('profiles')
-    .select('name, email')
+    .select('name, email, active')
     .eq('user_id', userId)
     .maybeSingle();
   return data;
@@ -43,7 +43,7 @@ async function buildAuthUser(supabaseUser: SupabaseUser, session: Session): Prom
     name: profile?.name ?? supabaseUser.user_metadata?.name ?? supabaseUser.email?.split('@')[0] ?? 'Usuário',
     email: profile?.email ?? supabaseUser.email ?? '',
     role,
-    active: true,
+    active: profile?.active ?? true,
     createdAt: supabaseUser.created_at,
     token: session.access_token,
   };

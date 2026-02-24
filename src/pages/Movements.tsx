@@ -128,7 +128,6 @@ export default function Movements() {
         itemId: data.itemId,
         userId: user?.id ?? '',
         note: data.note,
-        currentStock: item.quantity,
       });
       setDialogOpen(false);
       toast({ title: 'Movimentação registrada com sucesso!' });
