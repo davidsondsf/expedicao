@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Plus, Pencil, Tag, X, Check, Loader2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/useCategories';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Categories() {
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const { isAdmin } = useAuth();
+  const { canManageCategories } = usePermissions();
   const { toast } = useToast();
 
   const { data: categories = [], isLoading } = useCategories();
@@ -17,6 +17,10 @@ export default function Categories() {
   const updateCategory = useUpdateCategory();
 
   const handleAdd = async () => {
+    if (!canManageCategories) {
+      toast({ title: 'Sem permissao para gerenciar categorias', variant: 'destructive' });
+      return;
+    }
     if (!newName.trim()) return;
     try {
       await createCategory.mutateAsync(newName.trim());
@@ -28,6 +32,10 @@ export default function Categories() {
   };
 
   const handleEdit = async (id: string) => {
+    if (!canManageCategories) {
+      toast({ title: 'Sem permissao para gerenciar categorias', variant: 'destructive' });
+      return;
+    }
     if (!editName.trim()) return;
     try {
       await updateCategory.mutateAsync({ id, name: editName.trim() });
@@ -39,6 +47,7 @@ export default function Categories() {
   };
 
   const handleDeactivate = async (id: string) => {
+    if (!canManageCategories) return;
     try {
       await updateCategory.mutateAsync({ id, active: false });
     } catch {
@@ -47,6 +56,7 @@ export default function Categories() {
   };
 
   const handleReactivate = async (id: string) => {
+    if (!canManageCategories) return;
     try {
       await updateCategory.mutateAsync({ id, active: true });
     } catch {
@@ -65,29 +75,29 @@ export default function Categories() {
           <p className="page-subtitle">{active.length} categorias ativas</p>
         </div>
 
-        {/* Add new */}
-        <div className="stat-card">
-          <h3 className="text-sm font-semibold mb-3">Nova Categoria</h3>
-          <div className="flex gap-3">
-            <input
-              className="input-search flex-1 h-9"
-              placeholder="Nome da categoria..."
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            />
-            <button
-              onClick={handleAdd}
-              disabled={!newName.trim() || createCategory.isPending}
-              className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {createCategory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Adicionar
-            </button>
+        {canManageCategories && (
+          <div className="stat-card">
+            <h3 className="text-sm font-semibold mb-3">Nova Categoria</h3>
+            <div className="flex gap-3">
+              <input
+                className="input-search flex-1 h-9"
+                placeholder="Nome da categoria..."
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              />
+              <button
+                onClick={handleAdd}
+                disabled={!newName.trim() || createCategory.isPending}
+                className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {createCategory.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Adicionar
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Active categories */}
         <div className="stat-card">
           <h3 className="text-sm font-semibold mb-4">Categorias Ativas</h3>
           {isLoading ? (
@@ -101,7 +111,7 @@ export default function Categories() {
                   <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                     <Tag className="h-4 w-4 text-primary" />
                   </div>
-                  {editingId === cat.id ? (
+                  {canManageCategories && editingId === cat.id ? (
                     <input
                       className="input-search flex-1 h-8 text-sm"
                       value={editName}
@@ -120,41 +130,41 @@ export default function Categories() {
                       </p>
                     </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    {editingId === cat.id ? (
-                      <>
-                        <button
-                          onClick={() => handleEdit(cat.id)}
-                          className="h-7 w-7 flex items-center justify-center rounded text-success hover:bg-success/10 transition-colors"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        {isAdmin && (
+                  {canManageCategories && (
+                    <div className="flex items-center gap-1">
+                      {editingId === cat.id ? (
+                        <>
+                          <button
+                            onClick={() => handleEdit(cat.id)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-success hover:bg-success/10 transition-colors"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
+                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
                           <button
                             onClick={() => handleDeactivate(cat.id)}
                             className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
-                        )}
-                      </>
-                    )}
-                  </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {active.length === 0 && (
@@ -164,7 +174,6 @@ export default function Categories() {
           )}
         </div>
 
-        {/* Inactive */}
         {inactive.length > 0 && (
           <div className="stat-card opacity-60">
             <h3 className="text-sm font-semibold mb-4 text-muted-foreground">Inativas</h3>
@@ -173,7 +182,7 @@ export default function Categories() {
                 <div key={cat.id} className="flex items-center gap-3 rounded-md border border-border/50 p-3">
                   <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
                   <p className="text-sm text-muted-foreground line-through">{cat.name}</p>
-                  {isAdmin && (
+                  {canManageCategories && (
                     <button
                       onClick={() => handleReactivate(cat.id)}
                       className="ml-auto text-xs text-primary hover:underline"

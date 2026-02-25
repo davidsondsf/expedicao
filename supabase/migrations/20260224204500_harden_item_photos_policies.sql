@@ -5,6 +5,9 @@
 DROP POLICY IF EXISTS "Authenticated users can upload item photos" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can update item photos" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can delete item photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload own item photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own item photos" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own item photos" ON storage.objects;
 
 CREATE POLICY "Users can upload own item photos"
 ON storage.objects FOR INSERT TO authenticated
