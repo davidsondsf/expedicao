@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import type { MovementType } from '@/types';
-import { TrendingUp, TrendingDown, Plus, Search, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Plus, Search, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X } from 'lucide-react';
 import { useMovements, useCreateMovement } from '@/hooks/useMovements';
 import { useItems } from '@/hooks/useItems';
 import { useToast } from '@/hooks/use-toast';
@@ -35,9 +35,7 @@ function MovementDialog({
   });
 
   const handleClose = () => { reset(); onClose(); };
-
   if (!open) return null;
-
   const type = watch('type');
 
   return (
@@ -45,7 +43,7 @@ function MovementDialog({
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative w-full max-w-md rounded-lg border border-border bg-card shadow-lg animate-fade-in">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="text-base font-semibold">Registrar Movimentação</h2>
+          <h2 className="text-base font-semibold">Registrar Movimentacao</h2>
           <button onClick={handleClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
         <form onSubmit={handleSubmit(onSave)} className="p-5 space-y-4">
@@ -61,7 +59,7 @@ function MovementDialog({
                 )}>
                   <input {...register('type')} type="radio" value={t} className="sr-only" />
                   {t === 'ENTRY' ? <TrendingUp className="h-4 w-4 text-success" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-                  <span className="text-sm font-medium">{t === 'ENTRY' ? 'Entrada' : 'Saída'}</span>
+                  <span className="text-sm font-medium">{t === 'ENTRY' ? 'Entrada' : 'Saida'}</span>
                 </label>
               ))}
             </div>
@@ -82,8 +80,8 @@ function MovementDialog({
             {errors.quantity && <p className="mt-0.5 text-xs text-destructive">{errors.quantity.message}</p>}
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Observação</label>
-            <textarea {...register('note')} className="input-search w-full h-20 py-2 resize-none" placeholder="Motivo ou observação..." />
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Observacao</label>
+            <textarea {...register('note')} className="input-search w-full h-20 py-2 resize-none" placeholder="Motivo ou observacao..." />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={handleClose} className="h-9 px-4 rounded-md border border-border text-sm text-muted-foreground hover:bg-muted">
@@ -105,6 +103,7 @@ export default function Movements() {
   const [typeFilter, setTypeFilter] = useState<MovementType | 'ALL'>('ALL');
   const [dialogOpen, setDialogOpen] = useState(false);
   const { user } = useAuth();
+  const { canCreateMovements } = usePermissions();
   const { toast } = useToast();
 
   const { data: movements = [], isLoading } = useMovements();
@@ -118,6 +117,11 @@ export default function Movements() {
   });
 
   const handleSave = async (data: FormData) => {
+    if (!canCreateMovements) {
+      toast({ title: 'Sem permissao para registrar movimentacao', variant: 'destructive' });
+      return;
+    }
+
     const item = items.find(i => i.id === data.itemId);
     if (!item) return;
 
@@ -130,9 +134,9 @@ export default function Movements() {
         note: data.note,
       });
       setDialogOpen(false);
-      toast({ title: 'Movimentação registrada com sucesso!' });
+      toast({ title: 'Movimentacao registrada com sucesso!' });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao registrar movimentação';
+      const msg = err instanceof Error ? err.message : 'Erro ao registrar movimentacao';
       toast({ title: msg, variant: 'destructive' });
     }
   };
@@ -140,28 +144,29 @@ export default function Movements() {
   const activeItems = items.filter(i => i.active);
 
   return (
-    <AppLayout title="Movimentações">
+    <AppLayout title="Movimentacoes">
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="page-header mb-0">
-            <h2 className="page-title">Movimentações</h2>
+            <h2 className="page-title">Movimentacoes</h2>
             <p className="page-subtitle">{filtered.length} registros</p>
           </div>
-          <button
-            onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="h-4 w-4" />
-            Nova Movimentação
-          </button>
+          {canCreateMovements && (
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="h-4 w-4" />
+              Nova Movimentacao
+            </button>
+          )}
         </div>
 
-        {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Total', value: movements.length, className: '' },
             { label: 'Entradas', value: movements.filter(m => m.type === 'ENTRY').length, className: 'text-success' },
-            { label: 'Saídas', value: movements.filter(m => m.type === 'EXIT').length, className: 'text-destructive' },
+            { label: 'Saidas', value: movements.filter(m => m.type === 'EXIT').length, className: 'text-destructive' },
           ].map(s => (
             <div key={s.label} className="stat-card text-center py-3">
               <p className={cn('text-2xl font-bold', s.className)}>{s.value}</p>
@@ -170,7 +175,6 @@ export default function Movements() {
           ))}
         </div>
 
-        {/* Filters */}
         <div className="flex gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -191,13 +195,12 @@ export default function Movements() {
                   typeFilter === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {t === 'ALL' ? 'Todos' : t === 'ENTRY' ? 'Entradas' : 'Saídas'}
+                {t === 'ALL' ? 'Todos' : t === 'ENTRY' ? 'Entradas' : 'Saidas'}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Table */}
         <div className="stat-card p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="data-table">
@@ -206,8 +209,8 @@ export default function Movements() {
                   <th>Tipo</th>
                   <th>Item</th>
                   <th>Qtd</th>
-                  <th>Responsável</th>
-                  <th>Observação</th>
+                  <th>Responsavel</th>
+                  <th>Observacao</th>
                   <th>Data</th>
                 </tr>
               </thead>
@@ -226,7 +229,7 @@ export default function Movements() {
                       <span className={mov.type === 'ENTRY' ? 'badge-entry' : 'badge-exit'}>
                         {mov.type === 'ENTRY'
                           ? <><TrendingUp className="h-3 w-3 mr-1 inline" />Entrada</>
-                          : <><TrendingDown className="h-3 w-3 mr-1 inline" />Saída</>
+                          : <><TrendingDown className="h-3 w-3 mr-1 inline" />Saida</>
                         }
                       </span>
                     </td>
@@ -239,7 +242,7 @@ export default function Movements() {
                     <td className="font-mono text-sm font-bold">{mov.quantity}</td>
                     <td className="text-sm text-muted-foreground">{mov.user?.name}</td>
                     <td className="text-sm text-muted-foreground max-w-[200px]">
-                      <span className="truncate block">{mov.note || '—'}</span>
+                      <span className="truncate block">{mov.note || '-'}</span>
                     </td>
                     <td className="text-xs font-mono text-muted-foreground">
                       {new Date(mov.createdAt).toLocaleDateString('pt-BR', {
@@ -251,7 +254,7 @@ export default function Movements() {
                 {!isLoading && filtered.length === 0 && (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-muted-foreground">
-                      Nenhuma movimentação encontrada
+                      Nenhuma movimentacao encontrada
                     </td>
                   </tr>
                 )}
@@ -261,13 +264,15 @@ export default function Movements() {
         </div>
       </div>
 
-      <MovementDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSave={handleSave}
-        items={activeItems}
-        loading={createMovement.isPending}
-      />
+      {canCreateMovements && (
+        <MovementDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onSave={handleSave}
+          items={activeItems}
+          loading={createMovement.isPending}
+        />
+      )}
     </AppLayout>
   );
 }

@@ -8,6 +8,7 @@ import { ItemFormDialog } from '@/components/ItemFormDialog';
 import { useItems, useCreateItem, useUpdateItem, useDeactivateItem } from '@/hooks/useItems';
 import { useCategories } from '@/hooks/useCategories';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { Item } from '@/types';
 
 export default function Items() {
@@ -17,6 +18,7 @@ export default function Items() {
   const [editing, setEditing] = useState<Item | null>(null);
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { canCreateItems, canEditItems, canDeleteItems } = usePermissions();
   const { toast } = useToast();
 
   const { data: items = [], isLoading } = useItems();
@@ -49,6 +51,11 @@ export default function Items() {
   };
 
   const handleSave = async (data: SaveData) => {
+    if ((!editing && !canCreateItems) || (editing && !canEditItems)) {
+      toast({ title: 'Sem permissao para esta acao', variant: 'destructive' });
+      return;
+    }
+
     try {
       if (editing) {
         await updateItem.mutateAsync({ id: editing.id, ...data });
@@ -73,13 +80,15 @@ export default function Items() {
             <h2 className="page-title">Itens do Estoque</h2>
             <p className="page-subtitle">{filtered.length} itens encontrados</p>
           </div>
-          <button
-            onClick={() => { setEditing(null); setDialogOpen(true); }}
-            className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="h-4 w-4" />
-            Novo Item
-          </button>
+          {canCreateItems && (
+            <button
+              onClick={() => { setEditing(null); setDialogOpen(true); }}
+              className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="h-4 w-4" />
+              Novo Item
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -194,14 +203,16 @@ export default function Items() {
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
-                        <button
-                          onClick={() => { setEditing(item); setDialogOpen(true); }}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          title="Editar"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        {isAdmin && (
+                        {canEditItems && (
+                          <button
+                            onClick={() => { setEditing(item); setDialogOpen(true); }}
+                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {isAdmin && canDeleteItems && (
                           <button
                             onClick={() => handleDeactivate(item.id)}
                             className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
