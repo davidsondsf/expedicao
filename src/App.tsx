@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,17 +6,27 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Items from "./pages/Items";
-import ItemDetail from "./pages/ItemDetail";
-import Categories from "./pages/Categories";
-import Movements from "./pages/Movements";
-import AdminUsers from "./pages/AdminUsers";
-import AuditLogs from "./pages/AuditLogs";
-import NotFound from "./pages/NotFound";
+
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Items = lazy(() => import("./pages/Items"));
+const ItemDetail = lazy(() => import("./pages/ItemDetail"));
+const Categories = lazy(() => import("./pages/Categories"));
+const Movements = lazy(() => import("./pages/Movements"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
+
+const RouteLoader = () => (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="text-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-3" />
+      <p className="text-sm text-muted-foreground">Carregando pagina...</p>
+    </div>
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,17 +35,19 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
-            <Route path="/items/:id" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
-            <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-            <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute requiredRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
-            <Route path="/admin/audit" element={<ProtectedRoute requiredRoles={['ADMIN']}><AuditLogs /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<RouteLoader />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
+              <Route path="/items/:id" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
+              <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+              <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute requiredRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
+              <Route path="/admin/audit" element={<ProtectedRoute requiredRoles={['ADMIN']}><AuditLogs /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
