@@ -10,8 +10,13 @@ export function useItemPhotoUpload() {
     setError(null);
 
     try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) {
+        throw new Error('Usuario nao autenticado');
+      }
+
       const ext = file.name.split('.').pop();
-      const path = `${itemId}/${Date.now()}.${ext}`;
+      const path = `${authData.user.id}/${itemId}/${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('item-photos')

@@ -50,7 +50,6 @@ async function fetchMovementsWithProfiles(itemId?: string) {
   if (error) throw error;
   const rows = (data ?? []) as unknown as MovementRow[];
 
-  // Fetch profiles for unique user_ids
   const userIds = [...new Set(rows.map(r => r.user_id))];
   const profilesMap = new Map<string, ProfileRow>();
 
@@ -88,35 +87,25 @@ type CreateMovementInput = {
   itemId: string;
   userId: string;
   note?: string;
-  currentStock: number;
 };
 
 export function useCreateMovement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateMovementInput) => {
-      if (input.type === 'EXIT' && input.quantity > input.currentStock) {
-        throw new Error(`Estoque insuficiente! Disponível: ${input.currentStock}`);
+      if (!input.userId) {
+        throw new Error('Usuario nao autenticado.');
       }
 
-      const newQty = input.type === 'ENTRY'
-        ? input.currentStock + input.quantity
-        : input.currentStock - input.quantity;
-
-      const { error: movErr } = await supabase.from('movements').insert({
-        type: input.type,
-        quantity: input.quantity,
-        item_id: input.itemId,
-        user_id: input.userId,
-        note: input.note || null,
+      const { error } = await supabase.rpc('register_movement', {
+        _item_id: input.itemId,
+        _user_id: input.userId,
+        _type: input.type,
+        _quantity: input.quantity,
+        _note: input.note ?? null,
       });
-      if (movErr) throw movErr;
 
-      const { error: itemErr } = await supabase
-        .from('items')
-        .update({ quantity: newQty })
-        .eq('id', input.itemId);
-      if (itemErr) throw itemErr;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['movements'] });
