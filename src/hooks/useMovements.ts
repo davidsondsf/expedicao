@@ -97,7 +97,7 @@ export function useCreateMovement() {
         throw new Error('Usuario nao autenticado.');
       }
 
-      const { error } = await supabase.rpc('register_movement', {
+      const { error } = await (supabase.rpc as any)('register_movement', {
         _item_id: input.itemId,
         _user_id: input.userId,
         _type: input.type,

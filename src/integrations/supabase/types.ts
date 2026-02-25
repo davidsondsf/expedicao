@@ -241,16 +241,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      register_movement: {
-        Args: {
-          _item_id: string
-          _note?: string | null
-          _quantity: number
-          _type: string
-          _user_id: string
-        }
-        Returns: string
-      }
     }
     Enums: {
       app_role: "ADMIN" | "OPERATOR" | "VIEWER"
