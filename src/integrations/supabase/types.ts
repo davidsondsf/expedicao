@@ -139,6 +139,87 @@ export type Database = {
           },
         ]
       }
+      maleta_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          maleta_id: string
+          numero_serie: string | null
+          quantidade: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          maleta_id: string
+          numero_serie?: string | null
+          quantidade?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          maleta_id?: string
+          numero_serie?: string | null
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maleta_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maleta_itens_maleta_id_fkey"
+            columns: ["maleta_id"]
+            isOneToOne: false
+            referencedRelation: "maletas_tecnicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maletas_tecnicas: {
+        Row: {
+          created_at: string
+          criado_por: string
+          data_devolucao: string | null
+          data_emprestimo: string
+          data_prevista_devolucao: string
+          id: string
+          observacoes: string | null
+          status: Database["public"]["Enums"]["maleta_status"]
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por: string
+          data_devolucao?: string | null
+          data_emprestimo?: string
+          data_prevista_devolucao: string
+          id?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["maleta_status"]
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string
+          data_devolucao?: string | null
+          data_emprestimo?: string
+          data_prevista_devolucao?: string
+          id?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["maleta_status"]
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       movements: {
         Row: {
           created_at: string
@@ -230,6 +311,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_maleta: {
+        Args: {
+          _criado_por: string
+          _data_prevista_devolucao: string
+          _itens: Json
+          _observacoes: string
+          _usuario_id: string
+        }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -241,10 +332,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      return_maleta: {
+        Args: { _maleta_id: string; _user_id: string }
+        Returns: undefined
+      }
+      update_maletas_atrasadas: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "ADMIN" | "OPERATOR" | "VIEWER"
       item_condition: "new" | "good" | "fair" | "poor" | "damaged"
+      maleta_status: "aberta" | "devolvida" | "atrasada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -374,6 +471,7 @@ export const Constants = {
     Enums: {
       app_role: ["ADMIN", "OPERATOR", "VIEWER"],
       item_condition: ["new", "good", "fair", "poor", "damaged"],
+      maleta_status: ["aberta", "devolvida", "atrasada"],
     },
   },
 } as const

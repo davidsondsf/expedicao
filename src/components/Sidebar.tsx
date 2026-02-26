@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Package, Tag, ArrowLeftRight,
+  LayoutDashboard, Package, Tag, ArrowLeftRight, Briefcase,
   ChevronLeft, ChevronRight, Warehouse, ShieldCheck, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Itens', to: '/items', icon: Package },
   { label: 'Categorias', to: '/categories', icon: Tag },
   { label: 'Movimentações', to: '/movements', icon: ArrowLeftRight },
+  { label: 'Maleta Técnica', to: '/maletas', icon: Briefcase },
 ];
 
 const adminItems = [

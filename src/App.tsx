@@ -15,6 +15,9 @@ const Categories = lazy(() => import("./pages/Categories"));
 const Movements = lazy(() => import("./pages/Movements"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const Maletas = lazy(() => import("./pages/Maletas"));
+const MaletaDetail = lazy(() => import("./pages/MaletaDetail"));
+const MaletaCreate = lazy(() => import("./pages/MaletaCreate"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -43,6 +46,9 @@ const App = () => (
               <Route path="/items/:id" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
               <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
               <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
+              <Route path="/maletas" element={<ProtectedRoute><Maletas /></ProtectedRoute>} />
+              <Route path="/maletas/new" element={<ProtectedRoute requiredRoles={['ADMIN', 'OPERATOR']}><MaletaCreate /></ProtectedRoute>} />
+              <Route path="/maletas/:id" element={<ProtectedRoute><MaletaDetail /></ProtectedRoute>} />
               <Route path="/admin/users" element={<ProtectedRoute requiredRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
               <Route path="/admin/audit" element={<ProtectedRoute requiredRoles={['ADMIN']}><AuditLogs /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
