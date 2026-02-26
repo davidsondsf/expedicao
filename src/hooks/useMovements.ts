@@ -94,18 +94,17 @@ export function useCreateMovement() {
   return useMutation({
     mutationFn: async (input: CreateMovementInput) => {
       if (!input.userId) {
-        throw new Error('Usuario nao autenticado.');
+        throw new Error('Usuário não autenticado');
       }
 
-      const { error } = await (supabase.rpc as any)('register_movement', {
-        _item_id: input.itemId,
-        _user_id: input.userId,
-        _type: input.type,
-        _quantity: input.quantity,
-        _note: input.note ?? null,
+      const { error } = await supabase.rpc('create_movement_and_adjust_stock', {
+        p_item_id: input.itemId,
+        p_type: input.type,
+        p_quantity: input.quantity,
+        p_user_id: input.userId,
+        p_note: input.note || null,
       });
-
-      if (error) throw new Error(error.message);
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['movements'] });
