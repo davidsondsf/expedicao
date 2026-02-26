@@ -11,6 +11,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useMovements } from '@/hooks/useMovements';
 import { useMemo } from 'react';
 import { EstoqueMovimentacaoChart } from '@/components/dashboard/EstoqueMovimentacaoChart';
+import { MaletaStatsCard } from '@/components/dashboard/MaletaStatsCard';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -151,6 +152,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Maletas Técnicas Stats */}
+        <MaletaStatsCard />
 
         {/* Stock Movement Chart */}
         <EstoqueMovimentacaoChart />
