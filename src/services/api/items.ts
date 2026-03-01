@@ -72,7 +72,7 @@ function mapItem(row: ItemRow): Item {
 }
 
 async function nextBarcode(): Promise<string> {
-  const { data, error } = await supabase.rpc('generate_next_item_barcode');
+  const { data, error } = await (supabase as any).rpc('generate_next_item_barcode');
   if (error || !data) throw error ?? new Error('Erro ao gerar código de barras');
   return data;
 }

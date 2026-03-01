@@ -75,13 +75,13 @@ export function useMaletas() {
       // Update overdue status first
       await callRpc<null>('update_maletas_atrasadas');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('maletas_tecnicas')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      const rows = (data ?? []) as unknown as MaletaRow[];
+      const rows = (data ?? []) as MaletaRow[];
       const userIds = [...new Set(rows.flatMap(r => [r.usuario_id, r.criado_por]))];
       const profiles = await fetchProfiles(userIds);
 
@@ -96,22 +96,22 @@ export function useMaleta(id: string) {
     queryFn: async () => {
       await callRpc<null>('update_maletas_atrasadas');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('maletas_tecnicas')
         .select('*')
         .eq('id', id)
         .single();
       if (error) throw error;
 
-      const row = data as unknown as MaletaRow;
+      const row = data as MaletaRow;
 
       // Fetch items
-      const { data: itemsData } = await supabase
+      const { data: itemsData } = await (supabase as any)
         .from('maleta_itens')
         .select('*, items(name, barcode, brand, model)')
         .eq('maleta_id', id);
 
-      const itens: MaletaItem[] = ((itemsData ?? []) as unknown as MaletaItemRow[]).map(i => ({
+      const itens: MaletaItem[] = ((itemsData ?? []) as MaletaItemRow[]).map(i => ({
         id: i.id,
         maletaId: i.maleta_id,
         itemId: i.item_id,
@@ -179,7 +179,7 @@ export function useMaletaStats() {
     queryFn: async () => {
       await callRpc<null>('update_maletas_atrasadas');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('maletas_tecnicas')
         .select('id, status, usuario_id');
       if (error) throw error;
@@ -195,11 +195,11 @@ export function useMaletaStats() {
 
       let itensEmprestados = 0;
       if (openMaletaIds.length > 0) {
-        const { data: itemsData } = await supabase
+        const { data: itemsData } = await (supabase as any)
           .from('maleta_itens')
           .select('quantidade')
           .in('maleta_id', openMaletaIds);
-        itensEmprestados = (itemsData ?? []).reduce((sum, i) => sum + i.quantidade, 0);
+        itensEmprestados = (itemsData ?? []).reduce((sum: number, i: any) => sum + i.quantidade, 0);
       }
 
       return { abertas, atrasadas, itensEmprestados };

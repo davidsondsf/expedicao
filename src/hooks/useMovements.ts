@@ -97,7 +97,7 @@ export function useCreateMovement() {
         throw new Error('Usuário não autenticado');
       }
 
-      const { error } = await supabase.rpc('create_movement_and_adjust_stock', {
+      const { error } = await (supabase as any).rpc('create_movement_and_adjust_stock', {
         p_item_id: input.itemId,
         p_type: input.type,
         p_quantity: input.quantity,
