@@ -51,7 +51,7 @@ export const mockItems: Item[] = [
   {
     id: 'i6', name: 'Papel Foto Glossy A4', brand: 'Glossy', model: '180g Premium', serialNumber: undefined,
     quantity: 200, minQuantity: 50, location: 'Prateleira A2', barcode: 'GCP-2024-00006',
-    categoryId: 'c1', active: true, createdAt: daysAgo(20), updatedAt: daysAgo(1),
+    categoryId: 'c1', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(20), updatedAt: daysAgo(1),
     category: { id: 'c1', name: 'Papéis e Mídias', active: true, createdAt: daysAgo(80) },
   },
   {
