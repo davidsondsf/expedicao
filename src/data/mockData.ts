@@ -45,7 +45,7 @@ export const mockItems: Item[] = [
   {
     id: 'i5', name: 'Impressora Xerox WorkCentre', brand: 'Xerox', model: 'WC7225', serialNumber: 'XR-WC-77821',
     quantity: 1, minQuantity: 1, location: 'Área Técnica D1', barcode: 'GCP-2024-00005',
-    categoryId: 'c4', active: true, createdAt: daysAgo(90), updatedAt: daysAgo(10),
+    categoryId: 'c4', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(90), updatedAt: daysAgo(10),
     category: { id: 'c4', name: 'Equipamentos', active: true, createdAt: daysAgo(45) },
   },
   {
