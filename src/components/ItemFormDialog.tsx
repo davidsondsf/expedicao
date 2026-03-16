@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Item } from '@/types';
 import { useCategories } from '@/hooks/useCategories';
 
@@ -10,9 +10,9 @@ const schema = z.object({
   name: z.string().min(2, 'Nome obrigatório'),
   brand: z.string().min(1, 'Marca obrigatória'),
   model: z.string().min(1, 'Modelo obrigatório'),
-  quantity: z.coerce.number().min(0, 'Quantidade não pode ser negativa'),
-  minQuantity: z.coerce.number().min(0),
   categoryId: z.string().min(1, 'Categoria obrigatória'),
+  requiresSerialNumber: z.boolean(),
+  allowBulkMovement: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -42,11 +42,12 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
     if (item) {
       reset({
         name: item.name, brand: item.brand, model: item.model,
-        quantity: item.quantity, minQuantity: item.minQuantity,
         categoryId: item.categoryId,
+        requiresSerialNumber: item.requiresSerialNumber ?? false,
+        allowBulkMovement: item.allowBulkMovement ?? true,
       });
     } else {
-      reset({ name: '', brand: '', model: '', quantity: 0, minQuantity: 1, categoryId: '' });
+      reset({ name: '', brand: '', model: '', categoryId: '', requiresSerialNumber: false, allowBulkMovement: true });
     }
   }, [item, open, reset]);
 
@@ -90,13 +91,32 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
               </select>
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Quantidade *" error={errors.quantity?.message}>
-              <input {...register('quantity')} type="number" min={0} className="input-search h-9 w-full" />
-            </Field>
-            <Field label="Qtd Mínima *" error={errors.minQuantity?.message}>
-              <input {...register('minQuantity')} type="number" min={0} className="input-search h-9 w-full" />
-            </Field>
+
+          {/* Flags de regras de movimentação */}
+          <div className="space-y-3 rounded-md border border-border p-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Regras de Movimentação</p>
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                {...register('requiresSerialNumber')}
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+              />
+              <div>
+                <p className="text-sm font-medium group-hover:text-foreground transition-colors">Exigir Nº de Série</p>
+                <p className="text-xs text-muted-foreground">O número de série será obrigatório em cada movimentação deste item.</p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                {...register('allowBulkMovement')}
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+              />
+              <div>
+                <p className="text-sm font-medium group-hover:text-foreground transition-colors">Permitir múltiplas unidades por movimentação</p>
+                <p className="text-xs text-muted-foreground">Se desativado, a quantidade será fixada em 1 por movimentação.</p>
+              </div>
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

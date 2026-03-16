@@ -27,7 +27,7 @@ function mapMovement(row: MovementRow, profile?: ProfileRow): Movement {
       model: row.items.model, barcode: row.items.barcode,
       quantity: row.items.quantity, minQuantity: row.items.min_quantity,
       serialNumber: undefined, location: '', categoryId: '',
-      active: true, createdAt: '', updatedAt: '',
+      active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: '', updatedAt: '',
     } : undefined,
     user: profile ? {
       id: row.user_id, name: profile.name, email: profile.email,

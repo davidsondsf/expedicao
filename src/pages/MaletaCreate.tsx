@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number };
+type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number; requiresSerialNumber: boolean; allowBulkMovement: boolean };
 type ProfileOption = { user_id: string; name: string; email: string };
 
 function useProfiles() {
@@ -70,7 +70,9 @@ export default function MaletaCreate() {
       item_id: item.id,
       quantidade: 1,
       itemName: `${item.name} (${item.barcode})`,
-      maxQty: item.quantity,
+      maxQty: item.allowBulkMovement ? item.quantity : 1,
+      requiresSerialNumber: item.requiresSerialNumber,
+      allowBulkMovement: item.allowBulkMovement,
     }]);
     setItemSearch('');
   };
@@ -91,7 +93,8 @@ export default function MaletaCreate() {
     ));
   };
 
-  const canNext = step === 0 ? !!selectedUserId : step === 1 ? selectedItems.length > 0 : !!dataPrevista;
+  const serialsValid = selectedItems.every(si => !si.requiresSerialNumber || (si.numero_serie && si.numero_serie.trim() !== ''));
+  const canNext = step === 0 ? !!selectedUserId : step === 1 ? selectedItems.length > 0 && serialsValid : !!dataPrevista;
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -224,7 +227,9 @@ export default function MaletaCreate() {
                     </div>
                     <div className="flex gap-3 flex-wrap">
                       <div>
-                        <label className="text-xs text-muted-foreground">Quantidade (máx: {si.maxQty})</label>
+                        <label className="text-xs text-muted-foreground">
+                          Quantidade {si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
+                        </label>
                         <input
                           type="number"
                           min={1}
@@ -232,15 +237,21 @@ export default function MaletaCreate() {
                           value={si.quantidade}
                           onChange={e => updateQty(si.item_id, parseInt(e.target.value) || 1)}
                           className="input-search h-8 w-24 mt-1"
+                          disabled={!si.allowBulkMovement}
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Nº Série (opcional)</label>
+                        <label className="text-xs text-muted-foreground">
+                          Nº Série {si.requiresSerialNumber ? '*' : '(opcional)'}
+                        </label>
                         <input
                           value={si.numero_serie ?? ''}
                           onChange={e => updateSerial(si.item_id, e.target.value)}
-                          className="input-search h-8 w-40 mt-1"
-                          placeholder="Opcional"
+                          className={cn(
+                            'input-search h-8 w-40 mt-1',
+                            si.requiresSerialNumber && !si.numero_serie && 'border-destructive'
+                          )}
+                          placeholder={si.requiresSerialNumber ? 'Obrigatório' : 'Opcional'}
                         />
                       </div>
                     </div>

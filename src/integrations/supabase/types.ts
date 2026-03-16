@@ -80,6 +80,7 @@ export type Database = {
       items: {
         Row: {
           active: boolean
+          allow_bulk_movement: boolean
           barcode: string
           brand: string
           category_id: string | null
@@ -92,11 +93,13 @@ export type Database = {
           name: string
           photo_url: string | null
           quantity: number
+          requires_serial_number: boolean
           serial_number: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
+          allow_bulk_movement?: boolean
           barcode: string
           brand: string
           category_id?: string | null
@@ -109,11 +112,13 @@ export type Database = {
           name: string
           photo_url?: string | null
           quantity?: number
+          requires_serial_number?: boolean
           serial_number?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
+          allow_bulk_movement?: boolean
           barcode?: string
           brand?: string
           category_id?: string | null
@@ -126,6 +131,7 @@ export type Database = {
           name?: string
           photo_url?: string | null
           quantity?: number
+          requires_serial_number?: boolean
           serial_number?: string | null
           updated_at?: string
         }
