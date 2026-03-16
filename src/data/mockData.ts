@@ -33,7 +33,7 @@ export const mockItems: Item[] = [
   {
     id: 'i3', name: 'Cartucho Epson L3150', brand: 'Epson', model: 'T544120-AL', serialNumber: undefined,
     quantity: 12, minQuantity: 8, location: 'Prateleira B3', barcode: 'GCP-2024-00003',
-    categoryId: 'c2', active: true, createdAt: daysAgo(40), updatedAt: daysAgo(3),
+    categoryId: 'c2', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(40), updatedAt: daysAgo(3),
     category: { id: 'c2', name: 'Toners e Cartuchos', active: true, createdAt: daysAgo(75) },
   },
   {
