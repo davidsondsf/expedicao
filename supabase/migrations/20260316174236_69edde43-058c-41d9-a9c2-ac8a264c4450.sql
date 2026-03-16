@@ -1,0 +1,1 @@
+ALTER TABLE public.items ALTER COLUMN location SET DEFAULT '';
