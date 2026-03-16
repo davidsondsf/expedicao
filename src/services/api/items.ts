@@ -34,6 +34,8 @@ type ItemRow = {
   active: boolean;
   condition: string | null;
   photo_url: string | null;
+  requires_serial_number: boolean;
+  allow_bulk_movement: boolean;
   created_at: string;
   updated_at: string;
   categories: { id: string; name: string; active: boolean; created_at: string } | null;
