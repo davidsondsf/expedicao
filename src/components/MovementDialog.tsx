@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, TrendingUp, TrendingDown, Loader2, Upload, ImageIcon } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Loader2, Upload, ImageIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MovementType, ItemCondition } from '@/types';
 
@@ -26,16 +26,28 @@ const schema = z.object({
 
 export type MovementFormData = z.infer<typeof schema>;
 
+interface MovementItem {
+  id: string;
+  name: string;
+  quantity: number;
+  photoUrl?: string;
+  condition?: ItemCondition;
+  serialNumber?: string;
+  location: string;
+  requiresSerialNumber: boolean;
+  allowBulkMovement: boolean;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (data: MovementFormData, photoFile?: File | null) => Promise<void>;
-  items: { id: string; name: string; quantity: number; photoUrl?: string; condition?: ItemCondition; serialNumber?: string; location: string }[];
+  items: MovementItem[];
   loading: boolean;
 }
 
 export function MovementDialog({ open, onClose, onSave, items, loading }: Props) {
-  const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<MovementFormData>({
+  const { register, handleSubmit, watch, reset, setValue, setError, clearErrors, formState: { errors } } = useForm<MovementFormData>({
     resolver: zodResolver(schema),
     defaultValues: { type: 'ENTRY', quantity: 1 },
   });
@@ -48,27 +60,29 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
   const selectedCondition = watch('condition');
   const selectedItemId = watch('itemId');
 
-  // When item changes, prefill serial/location/condition from current item data
   const selectedItem = items.find(i => i.id === selectedItemId);
+
+  // When item changes, enforce flags
+  useEffect(() => {
+    if (selectedItem) {
+      if (!selectedItem.allowBulkMovement) {
+        setValue('quantity', 1);
+      }
+      if (selectedItem.serialNumber) setValue('serialNumber', selectedItem.serialNumber);
+      if (selectedItem.location) setValue('location', selectedItem.location);
+      if (selectedItem.condition) setValue('condition', selectedItem.condition);
+      if (selectedItem.photoUrl) {
+        setPhotoPreview(selectedItem.photoUrl);
+        setPhotoFile(null);
+      }
+    }
+  }, [selectedItemId]);
 
   const handleClose = () => {
     reset();
     setPhotoPreview(null);
     setPhotoFile(null);
     onClose();
-  };
-
-  const handleItemChange = (itemId: string) => {
-    const item = items.find(i => i.id === itemId);
-    if (item) {
-      if (item.serialNumber) setValue('serialNumber', item.serialNumber);
-      if (item.location) setValue('location', item.location);
-      if (item.condition) setValue('condition', item.condition);
-      if (item.photoUrl) {
-        setPhotoPreview(item.photoUrl);
-        setPhotoFile(null);
-      }
-    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,6 +92,16 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
     const reader = new FileReader();
     reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const onSubmit = (data: MovementFormData) => {
+    // Validate serial number requirement
+    if (selectedItem?.requiresSerialNumber && (!data.serialNumber || data.serialNumber.trim() === '')) {
+      setError('serialNumber', { message: 'Nº de série obrigatório para este item' });
+      return;
+    }
+    clearErrors('serialNumber');
+    onSave(data, photoFile);
   };
 
   if (!open) return null;
@@ -90,7 +114,7 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
           <h2 className="text-base font-semibold">Registrar Movimentação</h2>
           <button onClick={handleClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
-        <form onSubmit={handleSubmit((data) => onSave(data, photoFile))} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
           {/* Tipo */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo *</label>
@@ -116,10 +140,6 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
             <select
               {...register('itemId')}
               className="input-search h-9 w-full"
-              onChange={(e) => {
-                register('itemId').onChange(e);
-                handleItemChange(e.target.value);
-              }}
             >
               <option value="">Selecionar item...</option>
               {items.map(i => (
@@ -129,10 +149,35 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
             {errors.itemId && <p className="mt-0.5 text-xs text-destructive">{errors.itemId.message}</p>}
           </div>
 
+          {/* Info badges about item rules */}
+          {selectedItem && (
+            <div className="flex gap-2 flex-wrap">
+              {selectedItem.requiresSerialNumber && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-warning/10 text-warning border border-warning/30">
+                  <AlertTriangle className="h-3 w-3" /> Nº de série obrigatório
+                </span>
+              )}
+              {!selectedItem.allowBulkMovement && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground border border-border">
+                  Quantidade fixa: 1
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Quantidade */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Quantidade *</label>
-            <input {...register('quantity')} type="number" min={1} className="input-search h-9 w-full" />
+            <input
+              {...register('quantity')}
+              type="number"
+              min={1}
+              className="input-search h-9 w-full"
+              disabled={selectedItem ? !selectedItem.allowBulkMovement : false}
+            />
+            {!selectedItem?.allowBulkMovement && selectedItem && (
+              <p className="mt-0.5 text-xs text-muted-foreground">Este item só permite 1 unidade por movimentação.</p>
+            )}
             {errors.quantity && <p className="mt-0.5 text-xs text-destructive">{errors.quantity.message}</p>}
           </div>
 
@@ -201,8 +246,15 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
           {/* Serial + Location */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Nº de Série</label>
-              <input {...register('serialNumber')} className="input-search h-9 w-full" placeholder="Opcional" />
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Nº de Série {selectedItem?.requiresSerialNumber ? '*' : ''}
+              </label>
+              <input
+                {...register('serialNumber')}
+                className={cn('input-search h-9 w-full', errors.serialNumber && 'border-destructive')}
+                placeholder={selectedItem?.requiresSerialNumber ? 'Obrigatório' : 'Opcional'}
+              />
+              {errors.serialNumber && <p className="mt-0.5 text-xs text-destructive">{errors.serialNumber.message}</p>}
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Localização</label>
