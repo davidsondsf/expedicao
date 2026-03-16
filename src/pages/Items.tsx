@@ -46,8 +46,9 @@ export default function Items() {
 
   type SaveData = {
     name: string; brand: string; model: string;
-    quantity: number; minQuantity: number;
     categoryId: string;
+    requiresSerialNumber: boolean;
+    allowBulkMovement: boolean;
   };
 
   const handleSave = async (data: SaveData) => {

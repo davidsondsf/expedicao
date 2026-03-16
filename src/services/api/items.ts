@@ -129,6 +129,8 @@ export const supabaseItemService: ItemService = {
     if (input.categoryId !== undefined) updateData.category_id = input.categoryId;
     if (input.condition !== undefined) updateData.condition = input.condition || null;
     if (input.photoUrl !== undefined) updateData.photo_url = input.photoUrl || null;
+    if ((input as any).requiresSerialNumber !== undefined) updateData.requires_serial_number = (input as any).requiresSerialNumber;
+    if ((input as any).allowBulkMovement !== undefined) updateData.allow_bulk_movement = (input as any).allowBulkMovement;
 
     const { error } = await supabase.from('items').update(updateData).eq('id', id);
     if (error) throw error;
