@@ -57,7 +57,7 @@ export const mockItems: Item[] = [
   {
     id: 'i7', name: 'Fusível HP M402', brand: 'HP', model: 'RM2-5425', serialNumber: 'HP-FS-09871',
     quantity: 0, minQuantity: 2, location: 'Prateleira C2', barcode: 'GCP-2024-00007',
-    categoryId: 'c3', active: true, createdAt: daysAgo(15), updatedAt: daysAgo(2),
+    categoryId: 'c3', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(15), updatedAt: daysAgo(2),
     category: { id: 'c3', name: 'Peças de Reposição', active: true, createdAt: daysAgo(60) },
   },
 ];
