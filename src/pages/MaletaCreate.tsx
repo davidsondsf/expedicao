@@ -226,7 +226,9 @@ export default function MaletaCreate() {
                     </div>
                     <div className="flex gap-3 flex-wrap">
                       <div>
-                        <label className="text-xs text-muted-foreground">Quantidade (máx: {si.maxQty})</label>
+                        <label className="text-xs text-muted-foreground">
+                          Quantidade {si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
+                        </label>
                         <input
                           type="number"
                           min={1}
@@ -234,15 +236,21 @@ export default function MaletaCreate() {
                           value={si.quantidade}
                           onChange={e => updateQty(si.item_id, parseInt(e.target.value) || 1)}
                           className="input-search h-8 w-24 mt-1"
+                          disabled={!si.allowBulkMovement}
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Nº Série (opcional)</label>
+                        <label className="text-xs text-muted-foreground">
+                          Nº Série {si.requiresSerialNumber ? '*' : '(opcional)'}
+                        </label>
                         <input
                           value={si.numero_serie ?? ''}
                           onChange={e => updateSerial(si.item_id, e.target.value)}
-                          className="input-search h-8 w-40 mt-1"
-                          placeholder="Opcional"
+                          className={cn(
+                            'input-search h-8 w-40 mt-1',
+                            si.requiresSerialNumber && !si.numero_serie && 'border-destructive'
+                          )}
+                          placeholder={si.requiresSerialNumber ? 'Obrigatório' : 'Opcional'}
                         />
                       </div>
                     </div>
