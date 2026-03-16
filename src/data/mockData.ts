@@ -39,7 +39,7 @@ export const mockItems: Item[] = [
   {
     id: 'i4', name: 'Drum Unit Canon', brand: 'Canon', model: 'C-EXV29', serialNumber: 'CN-DR-44521',
     quantity: 2, minQuantity: 3, location: 'Prateleira C1', barcode: 'GCP-2024-00004',
-    categoryId: 'c3', active: true, createdAt: daysAgo(30), updatedAt: daysAgo(5),
+    categoryId: 'c3', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(30), updatedAt: daysAgo(5),
     category: { id: 'c3', name: 'Peças de Reposição', active: true, createdAt: daysAgo(60) },
   },
   {
