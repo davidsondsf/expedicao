@@ -56,6 +56,8 @@ function mapItem(row: ItemRow): Item {
     active: row.active,
     condition: row.condition as ItemCondition | undefined,
     photoUrl: row.photo_url ?? undefined,
+    requiresSerialNumber: row.requires_serial_number,
+    allowBulkMovement: row.allow_bulk_movement,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     category: row.categories
