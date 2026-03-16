@@ -8,7 +8,7 @@ export type CreateItemInput = {
   serialNumber?: string;
   quantity: number;
   minQuantity: number;
-  location: string;
+  location?: string;
   categoryId: string;
   condition?: ItemCondition;
   photoUrl?: string;

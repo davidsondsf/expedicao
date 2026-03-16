@@ -45,9 +45,9 @@ export default function Items() {
   };
 
   type SaveData = {
-    name: string; brand: string; model: string; serialNumber?: string;
-    quantity: number; minQuantity: number; location: string;
-    categoryId: string; condition?: import('@/types').ItemCondition; photoUrl?: string;
+    name: string; brand: string; model: string;
+    quantity: number; minQuantity: number;
+    categoryId: string;
   };
 
   const handleSave = async (data: SaveData) => {
