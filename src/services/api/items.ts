@@ -105,15 +105,11 @@ export const supabaseItemService: ItemService = {
         name: input.name,
         brand: input.brand,
         model: input.model,
-        serial_number: input.serialNumber || null,
-        quantity: input.quantity,
-        min_quantity: input.minQuantity,
-        location: input.location || '',
         barcode,
         category_id: input.categoryId,
-        condition: input.condition || null,
-        photo_url: input.photoUrl || null,
-      })
+        requires_serial_number: input.requiresSerialNumber ?? false,
+        allow_bulk_movement: input.allowBulkMovement ?? true,
+      } as any)
       .select('*, categories(*)')
       .single();
 
