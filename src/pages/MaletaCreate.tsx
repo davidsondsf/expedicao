@@ -70,7 +70,9 @@ export default function MaletaCreate() {
       item_id: item.id,
       quantidade: 1,
       itemName: `${item.name} (${item.barcode})`,
-      maxQty: item.quantity,
+      maxQty: item.allowBulkMovement ? item.quantity : 1,
+      requiresSerialNumber: item.requiresSerialNumber,
+      allowBulkMovement: item.allowBulkMovement,
     }]);
     setItemSearch('');
   };

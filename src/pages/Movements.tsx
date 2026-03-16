@@ -69,7 +69,17 @@ export default function Movements() {
     }
   };
 
-  const activeItems = items.filter(i => i.active);
+  const activeItems = items.filter(i => i.active).map(i => ({
+    id: i.id,
+    name: i.name,
+    quantity: i.quantity,
+    photoUrl: i.photoUrl,
+    condition: i.condition,
+    serialNumber: i.serialNumber,
+    location: i.location,
+    requiresSerialNumber: i.requiresSerialNumber,
+    allowBulkMovement: i.allowBulkMovement,
+  }));
 
   return (
     <AppLayout title="Movimentações">
