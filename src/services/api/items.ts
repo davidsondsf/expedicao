@@ -118,19 +118,20 @@ export const supabaseItemService: ItemService = {
   },
 
   async update({ id, ...input }: UpdateItemInput) {
+    const raw = input as Record<string, unknown>;
     const updateData: Record<string, unknown> = {};
-    if (input.name !== undefined) updateData.name = input.name;
-    if (input.brand !== undefined) updateData.brand = input.brand;
-    if (input.model !== undefined) updateData.model = input.model;
-    if (input.serialNumber !== undefined) updateData.serial_number = input.serialNumber || null;
-    if (input.quantity !== undefined) updateData.quantity = input.quantity;
-    if (input.minQuantity !== undefined) updateData.min_quantity = input.minQuantity;
-    if (input.location !== undefined) updateData.location = input.location;
-    if (input.categoryId !== undefined) updateData.category_id = input.categoryId;
-    if (input.condition !== undefined) updateData.condition = input.condition || null;
-    if (input.photoUrl !== undefined) updateData.photo_url = input.photoUrl || null;
-    if ((input as any).requiresSerialNumber !== undefined) updateData.requires_serial_number = (input as any).requiresSerialNumber;
-    if ((input as any).allowBulkMovement !== undefined) updateData.allow_bulk_movement = (input as any).allowBulkMovement;
+    if (raw.name !== undefined) updateData.name = raw.name;
+    if (raw.brand !== undefined) updateData.brand = raw.brand;
+    if (raw.model !== undefined) updateData.model = raw.model;
+    if (raw.serialNumber !== undefined) updateData.serial_number = raw.serialNumber || null;
+    if (raw.quantity !== undefined) updateData.quantity = raw.quantity;
+    if (raw.minQuantity !== undefined) updateData.min_quantity = raw.minQuantity;
+    if (raw.location !== undefined) updateData.location = raw.location;
+    if (raw.categoryId !== undefined) updateData.category_id = raw.categoryId;
+    if (raw.condition !== undefined) updateData.condition = raw.condition || null;
+    if (raw.photoUrl !== undefined) updateData.photo_url = raw.photoUrl || null;
+    if (raw.requiresSerialNumber !== undefined) updateData.requires_serial_number = raw.requiresSerialNumber;
+    if (raw.allowBulkMovement !== undefined) updateData.allow_bulk_movement = raw.allowBulkMovement;
 
     const { error } = await supabase.from('items').update(updateData).eq('id', id);
     if (error) throw error;
