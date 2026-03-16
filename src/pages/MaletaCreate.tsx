@@ -93,7 +93,8 @@ export default function MaletaCreate() {
     ));
   };
 
-  const canNext = step === 0 ? !!selectedUserId : step === 1 ? selectedItems.length > 0 : !!dataPrevista;
+  const serialsValid = selectedItems.every(si => !si.requiresSerialNumber || (si.numero_serie && si.numero_serie.trim() !== ''));
+  const canNext = step === 0 ? !!selectedUserId : step === 1 ? selectedItems.length > 0 && serialsValid : !!dataPrevista;
 
   const handleSubmit = async () => {
     if (!user) return;
