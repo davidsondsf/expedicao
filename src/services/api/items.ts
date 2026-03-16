@@ -5,13 +5,9 @@ export type CreateItemInput = {
   name: string;
   brand: string;
   model: string;
-  serialNumber?: string;
-  quantity: number;
-  minQuantity: number;
-  location?: string;
   categoryId: string;
-  condition?: ItemCondition;
-  photoUrl?: string;
+  requiresSerialNumber?: boolean;
+  allowBulkMovement?: boolean;
 };
 
 export type UpdateItemInput = Partial<CreateItemInput> & { id: string };
