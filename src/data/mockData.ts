@@ -21,7 +21,7 @@ export const mockItems: Item[] = [
   {
     id: 'i1', name: 'Papel A4 75g', brand: 'Report', model: 'Premium Branco', serialNumber: undefined,
     quantity: 45, minQuantity: 20, location: 'Prateleira A1', barcode: 'GCP-2024-00001',
-    categoryId: 'c1', active: true, createdAt: daysAgo(60), updatedAt: daysAgo(2),
+    categoryId: 'c1', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(60), updatedAt: daysAgo(2),
     category: { id: 'c1', name: 'Papéis e Mídias', active: true, createdAt: daysAgo(80) },
   },
   {
