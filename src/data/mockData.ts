@@ -27,7 +27,7 @@ export const mockItems: Item[] = [
   {
     id: 'i2', name: 'Toner HP LaserJet', brand: 'HP', model: 'CF280A', serialNumber: 'HP-TN-00123',
     quantity: 3, minQuantity: 5, location: 'Prateleira B2', barcode: 'GCP-2024-00002',
-    categoryId: 'c2', active: true, createdAt: daysAgo(45), updatedAt: daysAgo(1),
+    categoryId: 'c2', active: true, requiresSerialNumber: false, allowBulkMovement: true, createdAt: daysAgo(45), updatedAt: daysAgo(1),
     category: { id: 'c2', name: 'Toners e Cartuchos', active: true, createdAt: daysAgo(75) },
   },
   {
