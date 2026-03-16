@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number };
+type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number; requiresSerialNumber: boolean; allowBulkMovement: boolean };
 type ProfileOption = { user_id: string; name: string; email: string };
 
 function useProfiles() {
