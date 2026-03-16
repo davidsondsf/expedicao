@@ -103,7 +103,7 @@ export type Database = {
           condition?: Database["public"]["Enums"]["item_condition"] | null
           created_at?: string
           id?: string
-          location: string
+          location?: string
           min_quantity?: number
           model: string
           name: string

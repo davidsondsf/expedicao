@@ -8,7 +8,7 @@ export type CreateItemInput = {
   serialNumber?: string;
   quantity: number;
   minQuantity: number;
-  location: string;
+  location?: string;
   categoryId: string;
   condition?: ItemCondition;
   photoUrl?: string;
@@ -108,7 +108,7 @@ export const supabaseItemService: ItemService = {
         serial_number: input.serialNumber || null,
         quantity: input.quantity,
         min_quantity: input.minQuantity,
-        location: input.location,
+        location: input.location || '',
         barcode,
         category_id: input.categoryId,
         condition: input.condition || null,
