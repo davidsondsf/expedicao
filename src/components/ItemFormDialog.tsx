@@ -11,6 +11,7 @@ const schema = z.object({
   brand: z.string().min(1, 'Marca obrigatória'),
   model: z.string().min(1, 'Modelo obrigatório'),
   categoryId: z.string().min(1, 'Categoria obrigatória'),
+  minQuantity: z.coerce.number().int().min(0, 'Mínimo não pode ser negativo'),
   requiresSerialNumber: z.boolean(),
   allowBulkMovement: z.boolean(),
 });
@@ -43,11 +44,12 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
       reset({
         name: item.name, brand: item.brand, model: item.model,
         categoryId: item.categoryId,
+        minQuantity: item.minQuantity ?? 1,
         requiresSerialNumber: item.requiresSerialNumber ?? false,
         allowBulkMovement: item.allowBulkMovement ?? true,
       });
     } else {
-      reset({ name: '', brand: '', model: '', categoryId: '', requiresSerialNumber: false, allowBulkMovement: true });
+      reset({ name: '', brand: '', model: '', categoryId: '', minQuantity: 1, requiresSerialNumber: false, allowBulkMovement: true });
     }
   }, [item, open, reset]);
 
@@ -89,6 +91,11 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Quantidade Mínima *" error={errors.minQuantity?.message}>
+              <input {...register('minQuantity')} type="number" min={0} className="input-search h-9 w-full" placeholder="Ex: 5" />
             </Field>
           </div>
 
