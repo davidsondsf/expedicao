@@ -108,6 +108,7 @@ export const supabaseItemService: ItemService = {
         model: input.model,
         barcode,
         category_id: input.categoryId,
+        min_quantity: input.minQuantity ?? 1,
         requires_serial_number: input.requiresSerialNumber ?? false,
         allow_bulk_movement: input.allowBulkMovement ?? true,
       } as any)
