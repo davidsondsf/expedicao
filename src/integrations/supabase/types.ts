@@ -327,6 +327,17 @@ export type Database = {
         }
         Returns: string
       }
+      create_movement_and_adjust_stock: {
+        Args: {
+          p_item_id: string
+          p_note?: string
+          p_quantity: number
+          p_type: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      generate_next_item_barcode: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
