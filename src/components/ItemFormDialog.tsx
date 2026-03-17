@@ -93,6 +93,11 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
               </select>
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Quantidade Mínima *" error={errors.minQuantity?.message}>
+              <input {...register('minQuantity')} type="number" min={0} className="input-search h-9 w-full" placeholder="Ex: 5" />
+            </Field>
+          </div>
 
           {/* Flags de regras de movimentação */}
           <div className="space-y-3 rounded-md border border-border p-4">
