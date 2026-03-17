@@ -327,6 +327,7 @@ export type Database = {
         }
         Returns: string
       }
+      generate_next_item_barcode: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
