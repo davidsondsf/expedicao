@@ -11,6 +11,7 @@ const schema = z.object({
   brand: z.string().min(1, 'Marca obrigatória'),
   model: z.string().min(1, 'Modelo obrigatório'),
   categoryId: z.string().min(1, 'Categoria obrigatória'),
+  minQuantity: z.coerce.number().int().min(0, 'Mínimo não pode ser negativo'),
   requiresSerialNumber: z.boolean(),
   allowBulkMovement: z.boolean(),
 });
