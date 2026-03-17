@@ -6,6 +6,7 @@ export type CreateItemInput = {
   brand: string;
   model: string;
   categoryId: string;
+  minQuantity?: number;
   requiresSerialNumber?: boolean;
   allowBulkMovement?: boolean;
 };
