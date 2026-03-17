@@ -44,11 +44,12 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
       reset({
         name: item.name, brand: item.brand, model: item.model,
         categoryId: item.categoryId,
+        minQuantity: item.minQuantity ?? 1,
         requiresSerialNumber: item.requiresSerialNumber ?? false,
         allowBulkMovement: item.allowBulkMovement ?? true,
       });
     } else {
-      reset({ name: '', brand: '', model: '', categoryId: '', requiresSerialNumber: false, allowBulkMovement: true });
+      reset({ name: '', brand: '', model: '', categoryId: '', minQuantity: 1, requiresSerialNumber: false, allowBulkMovement: true });
     }
   }, [item, open, reset]);
 
