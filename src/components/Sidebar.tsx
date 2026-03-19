@@ -9,11 +9,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 
 const navItems = [
-{ label: 'Dashboard', to: '/', icon: LayoutDashboard },
-{ label: 'Itens', to: '/items', icon: Package },
-{ label: 'Categorias', to: '/categories', icon: Tag },
-{ label: 'Movimentações', to: '/movements', icon: ArrowLeftRight },
-{ label: 'Maleta Técnica', to: '/maletas', icon: Briefcase }];
+  { label: 'Dashboard', to: '/', icon: LayoutDashboard },
+  { label: 'Itens', to: '/items', icon: Package },
+  { label: 'Categorias', to: '/categories', icon: Tag },
+  { label: 'Movimentações', to: '/movements', icon: ArrowLeftRight },
+  { label: 'Empréstimo', to: '/maletas', icon: Briefcase }];
 
 
 export function Sidebar() {
