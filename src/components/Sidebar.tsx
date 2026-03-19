@@ -49,14 +49,14 @@ export function Sidebar() {
         <div className="animate-fade-in">
             <p className="text-sm font-bold text-sidebar-foreground leading-none">​ExpediTec
 </p>
-            <p className="text-xs font-semibold text-primary">​Expedição Técnica  </p>
+            <p className="text-xs font-semibold text-primary">​Expedição Técnica
+Copycentro
+  </p>
           </div>}
       </div>
 
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ label, to, icon: Icon }) => {
-          const isActive = to === '/' ?
-          location.pathname === '/' :
+        {navItems.map(({ label, to, icon: Icon }) => {const isActive = to === '/' ? location.pathname === '/' :
           location.pathname.startsWith(to);
 
           return (
