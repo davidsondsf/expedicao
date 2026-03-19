@@ -1,12 +1,10 @@
 import { AppLayout } from '@/components/AppLayout';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMaleta, useReturnMaleta } from '@/hooks/useMaletas';
-import { useItemMovements } from '@/hooks/useMovements';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, RotateCcw, TrendingUp, TrendingDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ArrowLeft, Loader2, RotateCcw } from 'lucide-react';
 
 const statusLabel: Record<string, { label: string; className: string }> = {
   aberta: { label: 'Aberta', className: 'badge-entry' },
@@ -36,7 +34,7 @@ export default function MaletaDetail() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Maleta Técnica">
+      <AppLayout title="Empréstimo">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -46,8 +44,8 @@ export default function MaletaDetail() {
 
   if (!maleta) {
     return (
-      <AppLayout title="Maleta Técnica">
-        <p className="text-muted-foreground text-center py-20">Maleta não encontrada.</p>
+      <AppLayout title="Empréstimo">
+        <p className="text-muted-foreground text-center py-20">Empréstimo não encontrado.</p>
       </AppLayout>
     );
   }
@@ -55,7 +53,7 @@ export default function MaletaDetail() {
   const cfg = statusLabel[maleta.status] ?? statusLabel.aberta;
 
   return (
-    <AppLayout title="Detalhe da Maleta">
+    <AppLayout title="Detalhe do Empréstimo">
       <div className="space-y-6">
         <button onClick={() => navigate('/maletas')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> Voltar
@@ -63,7 +61,7 @@ export default function MaletaDetail() {
 
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h2 className="page-title">Maleta Técnica</h2>
+            <h2 className="page-title">Empréstimo</h2>
             <p className="text-xs text-muted-foreground font-mono">{maleta.id}</p>
           </div>
           <div className="flex items-center gap-3">

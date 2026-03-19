@@ -47,12 +47,12 @@ export default function Maletas() {
   };
 
   return (
-    <AppLayout title="Maleta Técnica">
+    <AppLayout title="Empréstimos">
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="page-header mb-0">
-            <h2 className="page-title">Maletas Técnicas</h2>
-            <p className="page-subtitle">{filtered.length} maletas encontradas</p>
+            <h2 className="page-title">Empréstimos</h2>
+            <p className="page-subtitle">{filtered.length} empréstimos encontrados</p>
           </div>
           {canCreate && (
             <button
@@ -60,7 +60,7 @@ export default function Maletas() {
               className="flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity"
             >
               <Plus className="h-4 w-4" />
-              Nova Maleta
+              Novo Empréstimo
             </button>
           )}
         </div>
@@ -104,7 +104,7 @@ export default function Maletas() {
                   <tr>
                     <td colSpan={5} className="text-center py-12 text-muted-foreground">
                       <Loader2 className="h-6 w-6 mx-auto mb-2 animate-spin opacity-40" />
-                      Carregando maletas...
+                      Carregando empréstimos...
                     </td>
                   </tr>
                 )}
@@ -112,7 +112,7 @@ export default function Maletas() {
                   <tr>
                     <td colSpan={5} className="text-center py-12 text-muted-foreground">
                       <Briefcase className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                      Nenhuma maleta encontrada
+                      Nenhum empréstimo encontrado
                     </td>
                   </tr>
                 )}
