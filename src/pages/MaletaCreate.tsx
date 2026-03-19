@@ -7,7 +7,7 @@ import { useCreateMaleta } from '@/hooks/useMaletas';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, Trash2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number; requiresSerialNumber: boolean; allowBulkMovement: boolean };
@@ -66,13 +66,15 @@ export default function MaletaCreate() {
   const addItem = (itemId: string) => {
     const item = activeItems.find(i => i.id === itemId);
     if (!item) return;
+    // If item requires serial number, force qty to 1 (one serial per row)
+    const effectiveMaxQty = item.requiresSerialNumber ? 1 : (item.allowBulkMovement ? item.quantity : 1);
     setSelectedItems(prev => [...prev, {
       item_id: item.id,
       quantidade: 1,
       itemName: `${item.name} (${item.barcode})`,
-      maxQty: item.allowBulkMovement ? item.quantity : 1,
+      maxQty: effectiveMaxQty,
       requiresSerialNumber: item.requiresSerialNumber,
-      allowBulkMovement: item.allowBulkMovement,
+      allowBulkMovement: item.allowBulkMovement && !item.requiresSerialNumber,
     }]);
     setItemSearch('');
   };
@@ -110,10 +112,10 @@ export default function MaletaCreate() {
         })),
         criadoPor: user.id,
       });
-      toast({ title: 'Maleta criada com sucesso!' });
+      toast({ title: 'Empréstimo criado com sucesso!' });
       navigate(`/maletas/${maletaId}`);
     } catch (err) {
-      toast({ title: err instanceof Error ? err.message : 'Erro ao criar maleta', variant: 'destructive' });
+      toast({ title: err instanceof Error ? err.message : 'Erro ao criar empréstimo', variant: 'destructive' });
     }
   };
 
@@ -121,7 +123,7 @@ export default function MaletaCreate() {
   const selectedUser = profiles.find(p => p.user_id === selectedUserId);
 
   return (
-    <AppLayout title="Nova Maleta Técnica">
+    <AppLayout title="Novo Empréstimo">
       <div className="space-y-6 max-w-3xl">
         <button onClick={() => navigate('/maletas')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> Voltar
@@ -205,7 +207,10 @@ export default function MaletaCreate() {
                     >
                       <div>
                         <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">{item.brand} — {item.barcode}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.brand} — {item.barcode}
+                          {item.requiresSerialNumber && <span className="ml-2 text-amber-500">(Nº série obrigatório)</span>}
+                        </p>
                       </div>
                       <span className="text-xs text-muted-foreground font-mono">Saldo: {item.quantity}</span>
                     </button>
@@ -228,7 +233,7 @@ export default function MaletaCreate() {
                     <div className="flex gap-3 flex-wrap">
                       <div>
                         <label className="text-xs text-muted-foreground">
-                          Quantidade {si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
+                          Quantidade {si.requiresSerialNumber ? '(fixo: 1 — nº série)' : si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
                         </label>
                         <input
                           type="number"
@@ -237,7 +242,7 @@ export default function MaletaCreate() {
                           value={si.quantidade}
                           onChange={e => updateQty(si.item_id, parseInt(e.target.value) || 1)}
                           className="input-search h-8 w-24 mt-1"
-                          disabled={!si.allowBulkMovement}
+                          disabled={!si.allowBulkMovement || si.requiresSerialNumber}
                         />
                       </div>
                       <div>
@@ -265,7 +270,7 @@ export default function MaletaCreate() {
         {/* Step 2: Confirm */}
         {step === 2 && (
           <div className="stat-card space-y-4">
-            <h3 className="text-sm font-semibold">Confirmar Maleta</h3>
+            <h3 className="text-sm font-semibold">Confirmar Empréstimo</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Usuário</span>
@@ -277,7 +282,10 @@ export default function MaletaCreate() {
               </div>
               <div className="space-y-1">
                 {selectedItems.map(si => (
-                  <p key={si.item_id} className="text-xs text-muted-foreground">• {si.itemName} × {si.quantidade}</p>
+                  <p key={si.item_id} className="text-xs text-muted-foreground">
+                    • {si.itemName} × {si.quantidade}
+                    {si.numero_serie && <span className="ml-1 font-mono">(S/N: {si.numero_serie})</span>}
+                  </p>
                 ))}
               </div>
               <div>
@@ -328,7 +336,7 @@ export default function MaletaCreate() {
               className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-4 h-9 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {createMaleta.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Criar Maleta
+              Criar Empréstimo
             </button>
           )}
         </div>
