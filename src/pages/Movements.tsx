@@ -75,6 +75,7 @@ export default function Movements() {
     id: i.id,
     name: i.name,
     quantity: i.quantity,
+    categoryId: i.categoryId,
     photoUrl: i.photoUrl,
     condition: i.condition,
     serialNumber: i.serialNumber,
