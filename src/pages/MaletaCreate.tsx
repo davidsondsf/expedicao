@@ -191,40 +191,57 @@ export default function MaletaCreate() {
         {step === 1 && (
           <div className="stat-card space-y-4">
             <h3 className="text-sm font-semibold">Selecionar Itens</h3>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <input
-                className="input-search pl-8 h-9 w-full"
-                placeholder="Buscar item por nome ou código..."
-                value={itemSearch}
-                onChange={e => setItemSearch(e.target.value)}
-              />
+
+            {/* Category filter */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                <Filter className="h-3 w-3 inline mr-1" />
+                Filtrar por Categoria
+              </label>
+              <select
+                value={selectedCategoryId}
+                onChange={e => { setSelectedCategoryId(e.target.value); setSelectedItemId(''); }}
+                className="input-search h-9 w-full"
+              >
+                <option value="">Todas as categorias</option>
+                {availableCategories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
-            {itemSearch && (
-              <div className="border border-border rounded-md max-h-48 overflow-y-auto">
-                {filteredItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-3">Nenhum item disponível</p>
-                ) : (
-                  filteredItems.slice(0, 10).map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => addItem(item.id)}
-                      className="w-full text-left p-3 hover:bg-muted/50 transition-colors border-b border-border last:border-0 flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.brand} — {item.barcode}
-                          {item.requiresSerialNumber && <span className="ml-2 text-amber-500">(Nº série obrigatório)</span>}
-                        </p>
-                      </div>
-                      <span className="text-xs text-muted-foreground font-mono">Saldo: {item.quantity}</span>
-                    </button>
-                  ))
-                )}
+            {/* Item select */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                <Package className="h-3 w-3 inline mr-1" />
+                Item
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedItemId}
+                  onChange={e => setSelectedItemId(e.target.value)}
+                  className="input-search h-9 w-full"
+                >
+                  <option value="">Selecionar item...</option>
+                  {filteredItems.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} — {item.barcode} (saldo: {item.quantity})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  disabled={!selectedItemId}
+                  className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+                >
+                  Adicionar
+                </button>
               </div>
-            )}
+              {filteredItems.length === 0 && selectedCategoryId && (
+                <p className="mt-1 text-xs text-destructive">Nenhum item disponível nesta categoria com estoque.</p>
+              )}
+            </div>
 
             {selectedItems.length > 0 && (
               <div className="space-y-2">
