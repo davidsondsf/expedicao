@@ -3,11 +3,12 @@ import { AppLayout } from '@/components/AppLayout';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useItems } from '@/hooks/useItems';
+import { useCategories } from '@/hooks/useCategories';
 import { useCreateMaleta } from '@/hooks/useMaletas';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, Loader2, Trash2, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, Trash2, Search, Filter, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number; requiresSerialNumber: boolean; allowBulkMovement: boolean };
