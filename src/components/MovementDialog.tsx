@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, TrendingUp, TrendingDown, Loader2, Upload, ImageIcon, AlertTriangle } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Loader2, Upload, ImageIcon, AlertTriangle, Filter, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MovementType, ItemCondition } from '@/types';
+import type { MovementType, ItemCondition, Category } from '@/types';
 
 const CONDITION_OPTIONS: { value: ItemCondition; label: string; color: string }[] = [
   { value: 'new',     label: 'Novo',         color: 'text-success border-success/40 bg-success/10' },
@@ -26,10 +26,11 @@ const schema = z.object({
 
 export type MovementFormData = z.infer<typeof schema>;
 
-interface MovementItem {
+export interface MovementItem {
   id: string;
   name: string;
   quantity: number;
+  categoryId: string;
   photoUrl?: string;
   condition?: ItemCondition;
   serialNumber?: string;
@@ -43,10 +44,11 @@ interface Props {
   onClose: () => void;
   onSave: (data: MovementFormData, photoFile?: File | null) => Promise<void>;
   items: MovementItem[];
+  categories: Category[];
   loading: boolean;
 }
 
-export function MovementDialog({ open, onClose, onSave, items, loading }: Props) {
+export function MovementDialog({ open, onClose, onSave, items, categories, loading }: Props) {
   const { register, handleSubmit, watch, reset, setValue, setError, clearErrors, formState: { errors } } = useForm<MovementFormData>({
     resolver: zodResolver(schema),
     defaultValues: { type: 'ENTRY', quantity: 1 },
@@ -54,6 +56,7 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const type = watch('type');
@@ -61,6 +64,33 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
   const selectedItemId = watch('itemId');
 
   const selectedItem = items.find(i => i.id === selectedItemId);
+
+  // Filter items by category + active + stock for EXIT
+  const filteredItems = items.filter(i => {
+    if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
+    // For EXIT, only show items with stock > 0
+    if (type === 'EXIT' && i.quantity <= 0) return false;
+    return true;
+  });
+
+  // Derive available categories (only those that have matching items)
+  const availableCategories = categories.filter(c =>
+    c.active && items.some(i => i.categoryId === c.id)
+  );
+
+  // When category changes, reset item selection
+  useEffect(() => {
+    setValue('itemId', '');
+    setPhotoPreview(null);
+    setPhotoFile(null);
+  }, [selectedCategoryId, setValue]);
+
+  // When type changes, reset if selected item has no stock for EXIT
+  useEffect(() => {
+    if (type === 'EXIT' && selectedItem && selectedItem.quantity <= 0) {
+      setValue('itemId', '');
+    }
+  }, [type, selectedItem, setValue]);
 
   // When item changes, enforce flags
   useEffect(() => {
@@ -76,12 +106,13 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
         setPhotoFile(null);
       }
     }
-  }, [selectedItemId]);
+  }, [selectedItemId, selectedItem, setValue]);
 
   const handleClose = () => {
     reset();
     setPhotoPreview(null);
     setPhotoFile(null);
+    setSelectedCategoryId('');
     onClose();
   };
 
@@ -98,6 +129,11 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
     // Validate serial number requirement
     if (selectedItem?.requiresSerialNumber && (!data.serialNumber || data.serialNumber.trim() === '')) {
       setError('serialNumber', { message: 'Nº de série obrigatório para este item' });
+      return;
+    }
+    // Validate stock for EXIT
+    if (data.type === 'EXIT' && selectedItem && data.quantity > selectedItem.quantity) {
+      setError('quantity', { message: `Estoque insuficiente. Disponível: ${selectedItem.quantity}` });
       return;
     }
     clearErrors('serialNumber');
@@ -134,19 +170,47 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
             </div>
           </div>
 
+          {/* Categoria Filter */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              <Filter className="h-3 w-3 inline mr-1" />
+              Filtrar por Categoria
+            </label>
+            <select
+              value={selectedCategoryId}
+              onChange={e => setSelectedCategoryId(e.target.value)}
+              className="input-search h-9 w-full"
+            >
+              <option value="">Todas as categorias</option>
+              {availableCategories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Item */}
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Item *</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              <Package className="h-3 w-3 inline mr-1" />
+              Item *
+            </label>
             <select
               {...register('itemId')}
               className="input-search h-9 w-full"
             >
               <option value="">Selecionar item...</option>
-              {items.map(i => (
-                <option key={i.id} value={i.id}>{i.name} (estoque: {i.quantity})</option>
+              {filteredItems.map(i => (
+                <option key={i.id} value={i.id}>
+                  {i.name} (estoque: {i.quantity})
+                </option>
               ))}
             </select>
             {errors.itemId && <p className="mt-0.5 text-xs text-destructive">{errors.itemId.message}</p>}
+            {filteredItems.length === 0 && selectedCategoryId && (
+              <p className="mt-1 text-xs text-warning">
+                Nenhum item disponível nesta categoria{type === 'EXIT' ? ' com estoque' : ''}.
+              </p>
+            )}
           </div>
 
           {/* Info badges about item rules */}
@@ -162,6 +226,11 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
                   Quantidade fixa: 1
                 </span>
               )}
+              {type === 'EXIT' && selectedItem && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
+                  Disponível: {selectedItem.quantity}
+                </span>
+              )}
             </div>
           )}
 
@@ -172,6 +241,7 @@ export function MovementDialog({ open, onClose, onSave, items, loading }: Props)
               {...register('quantity')}
               type="number"
               min={1}
+              max={type === 'EXIT' && selectedItem ? selectedItem.quantity : undefined}
               className="input-search h-9 w-full"
               disabled={selectedItem ? !selectedItem.allowBulkMovement : false}
             />

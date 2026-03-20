@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMovements, useCreateMovement } from '@/hooks/useMovements';
 import { useItems, useUpdateItem } from '@/hooks/useItems';
+import { useCategories } from '@/hooks/useCategories';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useItemPhotoUpload } from '@/hooks/useItemPhotoUpload';
@@ -21,6 +22,7 @@ export default function Movements() {
 
   const { data: movements = [], isLoading } = useMovements();
   const { data: items = [] } = useItems();
+  const { data: categories = [] } = useCategories();
   const createMovement = useCreateMovement();
   const updateItem = useUpdateItem();
   const { uploadPhoto } = useItemPhotoUpload();
@@ -73,6 +75,7 @@ export default function Movements() {
     id: i.id,
     name: i.name,
     quantity: i.quantity,
+    categoryId: i.categoryId,
     photoUrl: i.photoUrl,
     condition: i.condition,
     serialNumber: i.serialNumber,
@@ -207,6 +210,7 @@ export default function Movements() {
           onClose={() => setDialogOpen(false)}
           onSave={handleSave}
           items={activeItems}
+          categories={categories}
           loading={createMovement.isPending}
         />
       )}
