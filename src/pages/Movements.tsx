@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMovements, useCreateMovement } from '@/hooks/useMovements';
 import { useItems, useUpdateItem } from '@/hooks/useItems';
+import { useCategories } from '@/hooks/useCategories';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useItemPhotoUpload } from '@/hooks/useItemPhotoUpload';
