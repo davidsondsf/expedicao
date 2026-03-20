@@ -22,6 +22,7 @@ export default function Movements() {
 
   const { data: movements = [], isLoading } = useMovements();
   const { data: items = [] } = useItems();
+  const { data: categories = [] } = useCategories();
   const createMovement = useCreateMovement();
   const updateItem = useUpdateItem();
   const { uploadPhoto } = useItemPhotoUpload();
