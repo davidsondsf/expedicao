@@ -210,6 +210,7 @@ export default function Movements() {
           onClose={() => setDialogOpen(false)}
           onSave={handleSave}
           items={activeItems}
+          categories={categories}
           loading={createMovement.isPending}
         />
       )}
