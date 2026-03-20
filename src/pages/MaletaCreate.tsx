@@ -35,6 +35,7 @@ export default function MaletaCreate() {
   const { toast } = useToast();
   const createMaleta = useCreateMaleta();
   const { data: items = [] } = useItems();
+  const { data: categories = [] } = useCategories();
   const { data: profiles = [] } = useProfiles();
 
   const [step, setStep] = useState(0);
@@ -42,10 +43,24 @@ export default function MaletaCreate() {
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [dataPrevista, setDataPrevista] = useState('');
   const [observacoes, setObservacoes] = useState('');
-  const [itemSearch, setItemSearch] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedItemId, setSelectedItemId] = useState('');
   const [userSearch, setUserSearch] = useState('');
 
   const activeItems = useMemo(() => items.filter(i => i.active && i.quantity > 0), [items]);
+
+  const availableCategories = useMemo(
+    () => categories.filter(c => c.active && activeItems.some(i => i.categoryId === c.id && !selectedItems.some(s => s.item_id === i.id))),
+    [categories, activeItems, selectedItems]
+  );
+
+  const filteredItems = useMemo(
+    () => activeItems.filter(i =>
+      !selectedItems.some(s => s.item_id === i.id) &&
+      (!selectedCategoryId || i.categoryId === selectedCategoryId)
+    ),
+    [activeItems, selectedItems, selectedCategoryId]
+  );
 
   const filteredUsers = useMemo(
     () => profiles.filter(p =>
@@ -55,19 +70,10 @@ export default function MaletaCreate() {
     [profiles, userSearch]
   );
 
-  const filteredItems = useMemo(
-    () => activeItems.filter(i =>
-      !selectedItems.some(s => s.item_id === i.id) &&
-      (i.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
-        i.barcode.toLowerCase().includes(itemSearch.toLowerCase()))
-    ),
-    [activeItems, selectedItems, itemSearch]
-  );
-
-  const addItem = (itemId: string) => {
-    const item = activeItems.find(i => i.id === itemId);
+  const addItem = () => {
+    if (!selectedItemId) return;
+    const item = activeItems.find(i => i.id === selectedItemId);
     if (!item) return;
-    // If item requires serial number, force qty to 1 (one serial per row)
     const effectiveMaxQty = item.requiresSerialNumber ? 1 : (item.allowBulkMovement ? item.quantity : 1);
     setSelectedItems(prev => [...prev, {
       item_id: item.id,
@@ -77,7 +83,7 @@ export default function MaletaCreate() {
       requiresSerialNumber: item.requiresSerialNumber,
       allowBulkMovement: item.allowBulkMovement && !item.requiresSerialNumber,
     }]);
-    setItemSearch('');
+    setSelectedItemId('');
   };
 
   const removeItem = (itemId: string) => {
