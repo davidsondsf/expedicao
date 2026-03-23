@@ -8,11 +8,25 @@ import { useCreateMaleta } from '@/hooks/useMaletas';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Check, Loader2, Trash2, Search, Filter, Package } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, Trash2, Search, Filter, Package, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-type SelectedItem = { item_id: string; quantidade: number; numero_serie?: string; itemName: string; maxQty: number; requiresSerialNumber: boolean; allowBulkMovement: boolean };
+type SelectedItem = {
+  item_id: string;
+  quantidade: number;
+  numero_serie?: string;
+  itemName: string;
+  maxQty: number;
+  availableQty: number;
+  requiresSerialNumber: boolean;
+  allowBulkMovement: boolean;
+};
+
 type ProfileOption = { user_id: string; name: string; email: string };
+
+type LoanedItemAgg = { item_id: string; total_loaned: number; serials: string[] };
 
 function useProfiles() {
   return useQuery({
@@ -29,6 +43,39 @@ function useProfiles() {
   });
 }
 
+/** Fetch aggregated quantities currently loaned out in open/overdue maletas */
+function useOpenLoanedItems() {
+  return useQuery({
+    queryKey: ['open-loaned-items'],
+    queryFn: async () => {
+      // Get open maleta IDs
+      const { data: maletas, error: mErr } = await supabase
+        .from('maletas_tecnicas')
+        .select('id')
+        .in('status', ['aberta', 'atrasada']);
+      if (mErr) throw mErr;
+
+      const openIds = (maletas ?? []).map((m: any) => m.id);
+      if (openIds.length === 0) return new Map<string, LoanedItemAgg>();
+
+      const { data: loanedItems, error: liErr } = await supabase
+        .from('maleta_itens')
+        .select('item_id, quantidade, numero_serie')
+        .in('maleta_id', openIds);
+      if (liErr) throw liErr;
+
+      const map = new Map<string, LoanedItemAgg>();
+      for (const row of (loanedItems ?? []) as any[]) {
+        const existing = map.get(row.item_id) ?? { item_id: row.item_id, total_loaned: 0, serials: [] };
+        existing.total_loaned += row.quantidade;
+        if (row.numero_serie) existing.serials.push(row.numero_serie);
+        map.set(row.item_id, existing);
+      }
+      return map;
+    },
+  });
+}
+
 export default function MaletaCreate() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -37,6 +84,7 @@ export default function MaletaCreate() {
   const { data: items = [] } = useItems();
   const { data: categories = [] } = useCategories();
   const { data: profiles = [] } = useProfiles();
+  const { data: loanedMap = new Map() } = useOpenLoanedItems();
 
   const [step, setStep] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -46,21 +94,79 @@ export default function MaletaCreate() {
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
   const [userSearch, setUserSearch] = useState('');
+  const [itemSearch, setItemSearch] = useState('');
 
-  const activeItems = useMemo(() => items.filter(i => i.active && i.quantity > 0), [items]);
+  // Items that are active and have had stock entries (quantity > 0 or have been moved)
+  const stockItems = useMemo(() => items.filter(i => i.active), [items]);
 
+  // Calculate effective available quantity per item (stock minus open loans minus already selected)
+  const getAvailableQty = (itemId: string): number => {
+    const item = stockItems.find(i => i.id === itemId);
+    if (!item) return 0;
+    const loaned = loanedMap.get(itemId)?.total_loaned ?? 0;
+    const alreadySelected = selectedItems
+      .filter(s => s.item_id === itemId)
+      .reduce((sum, s) => sum + s.quantidade, 0);
+    return Math.max(0, item.quantity - loaned - alreadySelected);
+  };
+
+  // Categories that have at least one available item
   const availableCategories = useMemo(
-    () => categories.filter(c => c.active && activeItems.some(i => i.categoryId === c.id && !selectedItems.some(s => s.item_id === i.id))),
-    [categories, activeItems, selectedItems]
+    () => categories.filter(c =>
+      c.active && stockItems.some(i =>
+        i.categoryId === c.id &&
+        !selectedItems.some(s => s.item_id === i.id) &&
+        getAvailableQty(i.id) > 0
+      )
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [categories, stockItems, selectedItems, loanedMap]
   );
 
-  const filteredItems = useMemo(
-    () => activeItems.filter(i =>
-      !selectedItems.some(s => s.item_id === i.id) &&
-      (!selectedCategoryId || i.categoryId === selectedCategoryId)
-    ),
-    [activeItems, selectedItems, selectedCategoryId]
-  );
+  // Filtered items based on category, search, and availability
+  const filteredItems = useMemo(() => {
+    return stockItems.filter(i => {
+      // Must not already be selected
+      if (selectedItems.some(s => s.item_id === i.id)) return false;
+      // Category filter
+      if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
+      // Text search filter (name, barcode, brand, model)
+      if (itemSearch) {
+        const search = itemSearch.toLowerCase();
+        const matches =
+          i.name.toLowerCase().includes(search) ||
+          i.barcode.toLowerCase().includes(search) ||
+          i.brand.toLowerCase().includes(search) ||
+          i.model.toLowerCase().includes(search);
+        if (!matches) return false;
+      }
+      // Must have available quantity
+      const available = getAvailableQty(i.id);
+      if (available <= 0) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockItems, selectedItems, selectedCategoryId, itemSearch, loanedMap]);
+
+  // Items with no stock but matching filters (to show as disabled)
+  const unavailableItems = useMemo(() => {
+    return stockItems.filter(i => {
+      if (selectedItems.some(s => s.item_id === i.id)) return false;
+      if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
+      if (itemSearch) {
+        const search = itemSearch.toLowerCase();
+        const matches =
+          i.name.toLowerCase().includes(search) ||
+          i.barcode.toLowerCase().includes(search) ||
+          i.brand.toLowerCase().includes(search) ||
+          i.model.toLowerCase().includes(search);
+        if (!matches) return false;
+      }
+      const available = getAvailableQty(i.id);
+      return available <= 0;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockItems, selectedItems, selectedCategoryId, itemSearch, loanedMap]);
 
   const filteredUsers = useMemo(
     () => profiles.filter(p =>
@@ -72,14 +178,25 @@ export default function MaletaCreate() {
 
   const addItem = () => {
     if (!selectedItemId) return;
-    const item = activeItems.find(i => i.id === selectedItemId);
+    const item = stockItems.find(i => i.id === selectedItemId);
     if (!item) return;
-    const effectiveMaxQty = item.requiresSerialNumber ? 1 : (item.allowBulkMovement ? item.quantity : 1);
+
+    const available = getAvailableQty(item.id);
+    if (available <= 0) {
+      toast({ title: 'Item sem estoque disponível', variant: 'destructive' });
+      return;
+    }
+
+    const effectiveMaxQty = item.requiresSerialNumber
+      ? 1
+      : (item.allowBulkMovement ? available : 1);
+
     setSelectedItems(prev => [...prev, {
       item_id: item.id,
       quantidade: 1,
       itemName: `${item.name} (${item.barcode})`,
       maxQty: effectiveMaxQty,
+      availableQty: available,
       requiresSerialNumber: item.requiresSerialNumber,
       allowBulkMovement: item.allowBulkMovement && !item.requiresSerialNumber,
     }]);
@@ -102,11 +219,47 @@ export default function MaletaCreate() {
     ));
   };
 
-  const serialsValid = selectedItems.every(si => !si.requiresSerialNumber || (si.numero_serie && si.numero_serie.trim() !== ''));
-  const canNext = step === 0 ? !!selectedUserId : step === 1 ? selectedItems.length > 0 && serialsValid : !!dataPrevista;
+  // Validate serial is not already in use in open loans
+  const getSerialConflict = (serial?: string): boolean => {
+    if (!serial || serial.trim() === '') return false;
+    for (const [, loaned] of loanedMap) {
+      if (loaned.serials.includes(serial.trim())) return true;
+    }
+    return false;
+  };
+
+  const serialsValid = selectedItems.every(si => {
+    if (!si.requiresSerialNumber) return true;
+    if (!si.numero_serie || si.numero_serie.trim() === '') return false;
+    return !getSerialConflict(si.numero_serie);
+  });
+
+  const canNext = step === 0
+    ? !!selectedUserId
+    : step === 1
+      ? selectedItems.length > 0 && serialsValid
+      : !!dataPrevista;
 
   const handleSubmit = async () => {
     if (!user) return;
+
+    // Final validation: check all items still have stock
+    for (const si of selectedItems) {
+      const available = getAvailableQty(si.item_id);
+      if (available + si.quantidade < si.quantidade) {
+        toast({ title: `Estoque insuficiente para "${si.itemName}"`, variant: 'destructive' });
+        return;
+      }
+      if (si.requiresSerialNumber && (!si.numero_serie || si.numero_serie.trim() === '')) {
+        toast({ title: `Nº de série obrigatório para "${si.itemName}"`, variant: 'destructive' });
+        return;
+      }
+      if (si.numero_serie && getSerialConflict(si.numero_serie)) {
+        toast({ title: `Nº de série "${si.numero_serie}" já em uso em empréstimo aberto`, variant: 'destructive' });
+        return;
+      }
+    }
+
     try {
       const maletaId = await createMaleta.mutateAsync({
         usuarioId: selectedUserId,
@@ -190,31 +343,57 @@ export default function MaletaCreate() {
         {/* Step 1: Select items */}
         {step === 1 && (
           <div className="stat-card space-y-4">
-            <h3 className="text-sm font-semibold">Selecionar Itens</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Selecionar Itens do Estoque</h3>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-[250px]">
+                    <p className="text-xs">Somente itens cadastrados com saldo disponível no estoque podem ser selecionados. Itens já emprestados têm o saldo reduzido.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
 
-            {/* Category filter */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                <Filter className="h-3 w-3 inline mr-1" />
-                Filtrar por Categoria
-              </label>
-              <select
-                value={selectedCategoryId}
-                onChange={e => { setSelectedCategoryId(e.target.value); setSelectedItemId(''); }}
-                className="input-search h-9 w-full"
-              >
-                <option value="">Todas as categorias</option>
-                {availableCategories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+            {/* Filters row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  <Filter className="h-3 w-3 inline mr-1" />
+                  Categoria
+                </label>
+                <select
+                  value={selectedCategoryId}
+                  onChange={e => { setSelectedCategoryId(e.target.value); setSelectedItemId(''); }}
+                  className="input-search h-9 w-full"
+                >
+                  <option value="">Todas as categorias</option>
+                  {availableCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  <Search className="h-3 w-3 inline mr-1" />
+                  Buscar (nome, código, marca)
+                </label>
+                <input
+                  className="input-search h-9 w-full"
+                  placeholder="Pesquisar item..."
+                  value={itemSearch}
+                  onChange={e => { setItemSearch(e.target.value); setSelectedItemId(''); }}
+                />
+              </div>
             </div>
 
             {/* Item select */}
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">
                 <Package className="h-3 w-3 inline mr-1" />
-                Item
+                Item disponível
               </label>
               <div className="flex gap-2">
                 <select
@@ -223,11 +402,24 @@ export default function MaletaCreate() {
                   className="input-search h-9 w-full"
                 >
                   <option value="">Selecionar item...</option>
-                  {filteredItems.map(item => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} — {item.barcode} (saldo: {item.quantity})
-                    </option>
-                  ))}
+                  {filteredItems.map(item => {
+                    const avail = getAvailableQty(item.id);
+                    return (
+                      <option key={item.id} value={item.id}>
+                        {item.name} — {item.barcode} (disponível: {avail})
+                      </option>
+                    );
+                  })}
+                  {/* Show unavailable items as disabled */}
+                  {unavailableItems.length > 0 && (
+                    <optgroup label="── Sem estoque disponível ──">
+                      {unavailableItems.map(item => (
+                        <option key={item.id} value="" disabled>
+                          {item.name} — {item.barcode} (indisponível)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
                 <button
                   type="button"
@@ -238,54 +430,81 @@ export default function MaletaCreate() {
                   Adicionar
                 </button>
               </div>
-              {filteredItems.length === 0 && selectedCategoryId && (
-                <p className="mt-1 text-xs text-destructive">Nenhum item disponível nesta categoria com estoque.</p>
+              {filteredItems.length === 0 && unavailableItems.length === 0 && (selectedCategoryId || itemSearch) && (
+                <p className="mt-1 text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Nenhum item encontrado com os filtros atuais.
+                </p>
+              )}
+              {filteredItems.length === 0 && unavailableItems.length > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Todos os itens desta seleção estão emprestados ou sem estoque.
+                </p>
               )}
             </div>
 
+            {/* Selected items list */}
             {selectedItems.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Itens selecionados</p>
-                {selectedItems.map(si => (
-                  <div key={si.item_id} className="rounded-md border border-border/50 p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium">{si.itemName}</p>
-                      <button onClick={() => removeItem(si.item_id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <div className="flex gap-3 flex-wrap">
-                      <div>
-                        <label className="text-xs text-muted-foreground">
-                          Quantidade {si.requiresSerialNumber ? '(fixo: 1 — nº série)' : si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={si.maxQty}
-                          value={si.quantidade}
-                          onChange={e => updateQty(si.item_id, parseInt(e.target.value) || 1)}
-                          className="input-search h-8 w-24 mt-1"
-                          disabled={!si.allowBulkMovement || si.requiresSerialNumber}
-                        />
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Itens selecionados ({selectedItems.length})
+                </p>
+                {selectedItems.map(si => {
+                  const serialConflict = getSerialConflict(si.numero_serie);
+                  return (
+                    <div key={si.item_id} className="rounded-md border border-border/50 p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{si.itemName}</p>
+                          <Badge variant="secondary" className="text-[10px]">
+                            Disp: {si.availableQty}
+                          </Badge>
+                        </div>
+                        <button onClick={() => removeItem(si.item_id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">
-                          Nº Série {si.requiresSerialNumber ? '*' : '(opcional)'}
-                        </label>
-                        <input
-                          value={si.numero_serie ?? ''}
-                          onChange={e => updateSerial(si.item_id, e.target.value)}
-                          className={cn(
-                            'input-search h-8 w-40 mt-1',
-                            si.requiresSerialNumber && !si.numero_serie && 'border-destructive'
+                      <div className="flex gap-3 flex-wrap">
+                        <div>
+                          <label className="text-xs text-muted-foreground">
+                            Quantidade {si.requiresSerialNumber ? '(fixo: 1 — nº série)' : si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={si.maxQty}
+                            value={si.quantidade}
+                            onChange={e => updateQty(si.item_id, parseInt(e.target.value) || 1)}
+                            className="input-search h-8 w-24 mt-1"
+                            disabled={!si.allowBulkMovement || si.requiresSerialNumber}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">
+                            Nº Série {si.requiresSerialNumber ? '*' : '(opcional)'}
+                          </label>
+                          <input
+                            value={si.numero_serie ?? ''}
+                            onChange={e => updateSerial(si.item_id, e.target.value)}
+                            className={cn(
+                              'input-search h-8 w-40 mt-1',
+                              (si.requiresSerialNumber && !si.numero_serie) && 'border-destructive',
+                              serialConflict && 'border-destructive'
+                            )}
+                            placeholder={si.requiresSerialNumber ? 'Obrigatório' : 'Opcional'}
+                          />
+                          {serialConflict && (
+                            <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-0.5">
+                              <AlertCircle className="h-2.5 w-2.5" />
+                              Nº série já em empréstimo aberto
+                            </p>
                           )}
-                          placeholder={si.requiresSerialNumber ? 'Obrigatório' : 'Opcional'}
-                        />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
