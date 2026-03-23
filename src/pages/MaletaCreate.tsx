@@ -401,41 +401,30 @@ export default function MaletaCreate() {
                 <Package className="h-3 w-3 inline mr-1" />
                 Item disponível
               </label>
-              <div className="flex gap-2">
-                <select
-                  value={selectedItemId}
-                  onChange={e => setSelectedItemId(e.target.value)}
-                  className="input-search h-9 w-full"
-                >
-                  <option value="">Selecionar item...</option>
-                  {filteredItems.map(item => {
-                    const avail = getAvailableQty(item.id);
-                    return (
-                      <option key={item.id} value={item.id}>
-                        {item.name} — {item.barcode} (disponível: {avail})
+              <select
+                value={selectedItemId}
+                onChange={e => { setSelectedItemId(e.target.value); setSerialInput(''); setQtyInput(1); }}
+                className="input-search h-9 w-full"
+              >
+                <option value="">Selecionar item...</option>
+                {filteredItems.map(item => {
+                  const avail = getAvailableQty(item.id);
+                  return (
+                    <option key={item.id} value={item.id}>
+                      {item.name} — {item.barcode} (disponível: {avail})
+                    </option>
+                  );
+                })}
+                {unavailableItems.length > 0 && (
+                  <optgroup label="── Sem estoque disponível ──">
+                    {unavailableItems.map(item => (
+                      <option key={item.id} value="" disabled>
+                        {item.name} — {item.barcode} (indisponível)
                       </option>
-                    );
-                  })}
-                  {/* Show unavailable items as disabled */}
-                  {unavailableItems.length > 0 && (
-                    <optgroup label="── Sem estoque disponível ──">
-                      {unavailableItems.map(item => (
-                        <option key={item.id} value="" disabled>
-                          {item.name} — {item.barcode} (indisponível)
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-                <button
-                  type="button"
-                  onClick={addItem}
-                  disabled={!selectedItemId}
-                  className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
-                >
-                  Adicionar
-                </button>
-              </div>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
               {filteredItems.length === 0 && unavailableItems.length === 0 && (selectedCategoryId || itemSearch) && (
                 <p className="mt-1 text-xs text-destructive flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
@@ -450,67 +439,86 @@ export default function MaletaCreate() {
               )}
             </div>
 
-            {/* Selected items list */}
+            {/* Qty + Serial + Add button — only visible when an item is selected */}
+            {pendingItem && (
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <p className="text-xs font-medium text-foreground">
+                  {pendingItem.name} — <span className="font-mono text-muted-foreground">{pendingItem.barcode}</span>
+                </p>
+                <div className="flex gap-3 flex-wrap items-end">
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Quantidade {pendingNeedsSerial ? '(fixo: 1 — nº série)' : pendingCanBulk ? `(máx: ${pendingMaxQty})` : '(fixo: 1)'}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={pendingMaxQty}
+                      value={qtyInput}
+                      onChange={e => setQtyInput(Math.max(1, Math.min(parseInt(e.target.value) || 1, pendingMaxQty)))}
+                      className="input-search h-8 w-24 mt-1"
+                      disabled={!pendingCanBulk}
+                    />
+                  </div>
+                  {(pendingNeedsSerial || serialInput) && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">
+                        Nº Série {pendingNeedsSerial ? '*' : '(opcional)'}
+                      </label>
+                      <input
+                        value={serialInput}
+                        onChange={e => setSerialInput(e.target.value)}
+                        className={cn(
+                          'input-search h-8 w-40 mt-1',
+                          (pendingNeedsSerial && !serialInput) && 'border-destructive',
+                          pendingSerialConflict && 'border-destructive'
+                        )}
+                        placeholder={pendingNeedsSerial ? 'Obrigatório' : 'Opcional'}
+                      />
+                      {pendingSerialConflict && (
+                        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-0.5">
+                          <AlertCircle className="h-2.5 w-2.5" />
+                          Nº série já em empréstimo aberto
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    disabled={pendingNeedsSerial && (!serialInput.trim() || pendingSerialConflict)}
+                    className="h-8 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Selected items list — read-only display */}
             {selectedItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">
                   Itens selecionados ({selectedItems.length})
                 </p>
-                {selectedItems.map(si => {
-                  const serialConflict = getSerialConflict(si.numero_serie);
-                  return (
-                    <div key={si.item_id} className="rounded-md border border-border/50 p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{si.itemName}</p>
-                          <Badge variant="secondary" className="text-[10px]">
-                            Disp: {si.availableQty}
-                          </Badge>
-                        </div>
-                        <button onClick={() => removeItem(si.item_id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex gap-3 flex-wrap">
-                        <div>
-                          <label className="text-xs text-muted-foreground">
-                            Quantidade {si.requiresSerialNumber ? '(fixo: 1 — nº série)' : si.allowBulkMovement ? `(máx: ${si.maxQty})` : '(fixo: 1)'}
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={si.maxQty}
-                            value={si.quantidade}
-                            onChange={e => updateQty(si.item_id, parseInt(e.target.value) || 1)}
-                            className="input-search h-8 w-24 mt-1"
-                            disabled={!si.allowBulkMovement || si.requiresSerialNumber}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">
-                            Nº Série {si.requiresSerialNumber ? '*' : '(opcional)'}
-                          </label>
-                          <input
-                            value={si.numero_serie ?? ''}
-                            onChange={e => updateSerial(si.item_id, e.target.value)}
-                            className={cn(
-                              'input-search h-8 w-40 mt-1',
-                              (si.requiresSerialNumber && !si.numero_serie) && 'border-destructive',
-                              serialConflict && 'border-destructive'
-                            )}
-                            placeholder={si.requiresSerialNumber ? 'Obrigatório' : 'Opcional'}
-                          />
-                          {serialConflict && (
-                            <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-0.5">
-                              <AlertCircle className="h-2.5 w-2.5" />
-                              Nº série já em empréstimo aberto
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                {selectedItems.map(si => (
+                  <div key={si.item_id} className="rounded-md border border-border/50 p-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <p className="text-sm font-medium truncate">{si.itemName}</p>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        Qtd: {si.quantidade}
+                      </Badge>
+                      {si.numero_serie && (
+                        <Badge variant="outline" className="text-[10px] font-mono shrink-0">
+                          S/N: {si.numero_serie}
+                        </Badge>
+                      )}
                     </div>
-                  );
-                })}
+                    <button onClick={() => removeItem(si.item_id)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
