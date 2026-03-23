@@ -178,31 +178,45 @@ export default function MaletaCreate() {
     [profiles, userSearch]
   );
 
-  const addItem = () => {
-    if (!selectedItemId) return;
-    const item = stockItems.find(i => i.id === selectedItemId);
-    if (!item) return;
+  // Derived state for the currently selected item in the filter
+  const pendingItem = useMemo(() => stockItems.find(i => i.id === selectedItemId), [stockItems, selectedItemId]);
+  const pendingAvailable = selectedItemId ? getAvailableQty(selectedItemId) : 0;
+  const pendingMaxQty = pendingItem
+    ? (pendingItem.requiresSerialNumber ? 1 : (pendingItem.allowBulkMovement ? pendingAvailable : 1))
+    : 1;
+  const pendingSerialConflict = getSerialConflict(serialInput);
 
-    const available = getAvailableQty(item.id);
-    if (available <= 0) {
+  const addItem = () => {
+    if (!selectedItemId || !pendingItem) return;
+
+    if (pendingAvailable <= 0) {
       toast({ title: 'Item sem estoque disponível', variant: 'destructive' });
       return;
     }
+    if (pendingItem.requiresSerialNumber && (!serialInput || serialInput.trim() === '')) {
+      toast({ title: 'Nº de série obrigatório para este item', variant: 'destructive' });
+      return;
+    }
+    if (serialInput && pendingSerialConflict) {
+      toast({ title: `Nº de série "${serialInput}" já em uso em empréstimo aberto`, variant: 'destructive' });
+      return;
+    }
 
-    const effectiveMaxQty = item.requiresSerialNumber
-      ? 1
-      : (item.allowBulkMovement ? available : 1);
+    const finalQty = Math.max(1, Math.min(qtyInput, pendingMaxQty));
 
     setSelectedItems(prev => [...prev, {
-      item_id: item.id,
-      quantidade: 1,
-      itemName: `${item.name} (${item.barcode})`,
-      maxQty: effectiveMaxQty,
-      availableQty: available,
-      requiresSerialNumber: item.requiresSerialNumber,
-      allowBulkMovement: item.allowBulkMovement && !item.requiresSerialNumber,
+      item_id: pendingItem.id,
+      quantidade: finalQty,
+      numero_serie: serialInput.trim() || undefined,
+      itemName: `${pendingItem.name} (${pendingItem.barcode})`,
+      maxQty: pendingMaxQty,
+      availableQty: pendingAvailable,
+      requiresSerialNumber: pendingItem.requiresSerialNumber,
+      allowBulkMovement: pendingItem.allowBulkMovement && !pendingItem.requiresSerialNumber,
     }]);
     setSelectedItemId('');
+    setSerialInput('');
+    setQtyInput(1);
   };
 
   const removeItem = (itemId: string) => {
