@@ -92,11 +92,9 @@ export default function MaletaCreate() {
   const [dataPrevista, setDataPrevista] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
-  const [selectedItemId, setSelectedItemId] = useState('');
-  const [serialInput, setSerialInput] = useState('');
-  const [qtyInput, setQtyInput] = useState(1);
+  const [qtyInputMap, setQtyInputMap] = useState<Record<string, number>>({});
   const [userSearch, setUserSearch] = useState('');
-  const [itemSearch, setItemSearch] = useState('');
+  const [serialSearch, setSerialSearch] = useState('');
 
   // Items that are active and have had stock entries (quantity > 0 or have been moved)
   const stockItems = useMemo(() => items.filter(i => i.active), [items]);
