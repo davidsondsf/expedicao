@@ -92,11 +92,9 @@ export default function MaletaCreate() {
   const [dataPrevista, setDataPrevista] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
-  const [selectedItemId, setSelectedItemId] = useState('');
-  const [serialInput, setSerialInput] = useState('');
-  const [qtyInput, setQtyInput] = useState(1);
+  const [qtyInputMap, setQtyInputMap] = useState<Record<string, number>>({});
   const [userSearch, setUserSearch] = useState('');
-  const [itemSearch, setItemSearch] = useState('');
+  const [serialSearch, setSerialSearch] = useState('');
 
   // Items that are active and have had stock entries (quantity > 0 or have been moved)
   const stockItems = useMemo(() => items.filter(i => i.active), [items]);
@@ -125,50 +123,32 @@ export default function MaletaCreate() {
     [categories, stockItems, selectedItems, loanedMap]
   );
 
-  // Filtered items based on category, search, and availability
+  // Filtered items based on category, serial search, and availability
   const filteredItems = useMemo(() => {
     return stockItems.filter(i => {
-      // Must not already be selected
-      if (selectedItems.some(s => s.item_id === i.id)) return false;
-      // Category filter
       if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
-      // Text search filter (name, barcode, brand, model)
-      if (itemSearch) {
-        const search = itemSearch.toLowerCase();
+      if (serialSearch) {
+        const search = serialSearch.toLowerCase();
         const matches =
-          i.name.toLowerCase().includes(search) ||
-          i.barcode.toLowerCase().includes(search) ||
-          i.brand.toLowerCase().includes(search) ||
-          i.model.toLowerCase().includes(search);
+          (i.serialNumber && i.serialNumber.toLowerCase().includes(search)) ||
+          i.barcode.toLowerCase().includes(search);
         if (!matches) return false;
       }
-      // Must have available quantity
-      const available = getAvailableQty(i.id);
-      if (available <= 0) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockItems, selectedItems, selectedCategoryId, itemSearch, loanedMap]);
+  }, [stockItems, selectedCategoryId, serialSearch]);
 
-  // Items with no stock but matching filters (to show as disabled)
-  const unavailableItems = useMemo(() => {
-    return stockItems.filter(i => {
-      if (selectedItems.some(s => s.item_id === i.id)) return false;
-      if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
-      if (itemSearch) {
-        const search = itemSearch.toLowerCase();
-        const matches =
-          i.name.toLowerCase().includes(search) ||
-          i.barcode.toLowerCase().includes(search) ||
-          i.brand.toLowerCase().includes(search) ||
-          i.model.toLowerCase().includes(search);
-        if (!matches) return false;
-      }
-      const available = getAvailableQty(i.id);
-      return available <= 0;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockItems, selectedItems, selectedCategoryId, itemSearch, loanedMap]);
+  // Split into available and unavailable
+  const availableItems = useMemo(() => filteredItems.filter(i => {
+    const avail = getAvailableQty(i.id);
+    return avail > 0 && !selectedItems.some(s => s.item_id === i.id && (!i.allowBulkMovement || i.requiresSerialNumber));
+  }), [filteredItems, selectedItems, loanedMap]);
+
+  const unavailableItems = useMemo(() => filteredItems.filter(i => {
+    const avail = getAvailableQty(i.id);
+    return avail <= 0;
+  }), [filteredItems, loanedMap]);
 
   const filteredUsers = useMemo(
     () => profiles.filter(p =>
@@ -187,47 +167,61 @@ export default function MaletaCreate() {
     return false;
   };
 
-  // Derived state for the currently selected item in the filter
-  const pendingItem = useMemo(() => stockItems.find(i => i.id === selectedItemId), [stockItems, selectedItemId]);
-  const pendingAvailable = selectedItemId ? getAvailableQty(selectedItemId) : 0;
-  const pendingMaxQty = pendingItem
-    ? (pendingItem.requiresSerialNumber ? 1 : (pendingItem.allowBulkMovement ? pendingAvailable : 1))
-    : 1;
-  const pendingSerialConflict = getSerialConflict(serialInput);
-  const pendingNeedsSerial = pendingItem?.requiresSerialNumber ?? false;
-  const pendingCanBulk = pendingItem ? (pendingItem.allowBulkMovement && !pendingItem.requiresSerialNumber) : false;
-
-  const addItem = () => {
-    if (!selectedItemId || !pendingItem) return;
-
-    if (pendingAvailable <= 0) {
+  const addItem = (item: typeof stockItems[0]) => {
+    const available = getAvailableQty(item.id);
+    if (available <= 0) {
       toast({ title: 'Item sem estoque disponível', variant: 'destructive' });
       return;
     }
-    if (pendingNeedsSerial && (!serialInput || serialInput.trim() === '')) {
-      toast({ title: 'Nº de série obrigatório para este item', variant: 'destructive' });
-      return;
-    }
-    if (serialInput && pendingSerialConflict) {
-      toast({ title: `Nº de série "${serialInput}" já em uso em empréstimo aberto`, variant: 'destructive' });
-      return;
+
+    // For serial items, use the item's serial_number directly
+    if (item.requiresSerialNumber) {
+      if (!item.serialNumber) {
+        toast({ title: 'Item sem nº de série cadastrado', variant: 'destructive' });
+        return;
+      }
+      if (getSerialConflict(item.serialNumber)) {
+        toast({ title: `Nº de série "${item.serialNumber}" já em empréstimo aberto`, variant: 'destructive' });
+        return;
+      }
+      if (selectedItems.some(s => s.numero_serie === item.serialNumber)) {
+        toast({ title: `Nº de série "${item.serialNumber}" já adicionado`, variant: 'destructive' });
+        return;
+      }
     }
 
-    const finalQty = Math.max(1, Math.min(qtyInput, pendingMaxQty));
+    // For non-serial bulk items, check if already added (will increase qty)
+    if (!item.requiresSerialNumber && item.allowBulkMovement) {
+      const existing = selectedItems.find(s => s.item_id === item.id);
+      if (existing) {
+        const newQty = (qtyInputMap[item.id] ?? 1);
+        const totalQty = existing.quantidade + newQty;
+        if (totalQty > available + existing.quantidade) {
+          toast({ title: 'Quantidade excede o estoque disponível', variant: 'destructive' });
+          return;
+        }
+        setSelectedItems(prev => prev.map(s =>
+          s.item_id === item.id ? { ...s, quantidade: totalQty, availableQty: available } : s
+        ));
+        setQtyInputMap(prev => ({ ...prev, [item.id]: 1 }));
+        return;
+      }
+    }
+
+    const maxQty = item.requiresSerialNumber ? 1 : (item.allowBulkMovement ? available : 1);
+    const qty = item.requiresSerialNumber ? 1 : Math.max(1, Math.min(qtyInputMap[item.id] ?? 1, maxQty));
 
     setSelectedItems(prev => [...prev, {
-      item_id: pendingItem.id,
-      quantidade: finalQty,
-      numero_serie: serialInput.trim() || undefined,
-      itemName: `${pendingItem.name} (${pendingItem.barcode})`,
-      maxQty: pendingMaxQty,
-      availableQty: pendingAvailable,
-      requiresSerialNumber: pendingItem.requiresSerialNumber,
-      allowBulkMovement: pendingItem.allowBulkMovement && !pendingItem.requiresSerialNumber,
+      item_id: item.id,
+      quantidade: qty,
+      numero_serie: item.requiresSerialNumber ? item.serialNumber : undefined,
+      itemName: `${item.name} (${item.barcode})`,
+      maxQty,
+      availableQty: available,
+      requiresSerialNumber: item.requiresSerialNumber,
+      allowBulkMovement: item.allowBulkMovement && !item.requiresSerialNumber,
     }]);
-    setSelectedItemId('');
-    setSerialInput('');
-    setQtyInput(1);
+    setQtyInputMap(prev => ({ ...prev, [item.id]: 1 }));
   };
 
   const removeItem = (itemId: string) => {
@@ -357,7 +351,7 @@ export default function MaletaCreate() {
                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-[250px]">
-                    <p className="text-xs">Somente itens cadastrados com saldo disponível no estoque podem ser selecionados. Itens já emprestados têm o saldo reduzido.</p>
+                    <p className="text-xs">Somente itens cadastrados com saldo disponível no estoque podem ser selecionados. Clique no item para adicioná-lo ao empréstimo.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -372,7 +366,7 @@ export default function MaletaCreate() {
                 </label>
                 <select
                   value={selectedCategoryId}
-                  onChange={e => { setSelectedCategoryId(e.target.value); setSelectedItemId(''); }}
+                  onChange={e => setSelectedCategoryId(e.target.value)}
                   className="input-search h-9 w-full"
                 >
                   <option value="">Todas as categorias</option>
@@ -384,116 +378,121 @@ export default function MaletaCreate() {
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">
                   <Search className="h-3 w-3 inline mr-1" />
-                  Buscar (nome, código, marca)
+                  Buscar por Nº de Série
                 </label>
                 <input
                   className="input-search h-9 w-full"
-                  placeholder="Pesquisar item..."
-                  value={itemSearch}
-                  onChange={e => { setItemSearch(e.target.value); setSelectedItemId(''); }}
+                  placeholder="Digite o nº de série ou código..."
+                  value={serialSearch}
+                  onChange={e => setSerialSearch(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Item select */}
+            {/* Items list */}
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
                 <Package className="h-3 w-3 inline mr-1" />
-                Item disponível
-              </label>
-              <select
-                value={selectedItemId}
-                onChange={e => { setSelectedItemId(e.target.value); setSerialInput(''); setQtyInput(1); }}
-                className="input-search h-9 w-full"
-              >
-                <option value="">Selecionar item...</option>
-                {filteredItems.map(item => {
+                Itens disponíveis ({availableItems.length})
+              </p>
+              <div className="space-y-1 max-h-64 overflow-y-auto border border-border/30 rounded-md p-1">
+                {availableItems.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4 flex items-center justify-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {(selectedCategoryId || serialSearch)
+                      ? 'Nenhum item encontrado com os filtros atuais.'
+                      : 'Nenhum item disponível no estoque.'}
+                  </p>
+                )}
+                {availableItems.map(item => {
                   const avail = getAvailableQty(item.id);
+                  const alreadyAdded = selectedItems.some(s => s.item_id === item.id);
+                  const needsSerial = item.requiresSerialNumber;
+                  const canBulk = item.allowBulkMovement && !item.requiresSerialNumber;
+                  const serialInUse = needsSerial && item.serialNumber ? getSerialConflict(item.serialNumber) : false;
+                  const serialAlreadyAdded = needsSerial && item.serialNumber
+                    ? selectedItems.some(s => s.numero_serie === item.serialNumber)
+                    : false;
+                  const isDisabled = serialInUse || serialAlreadyAdded || (alreadyAdded && !canBulk);
+
                   return (
-                    <option key={item.id} value={item.id}>
-                      {item.name} — {item.barcode} (disponível: {avail})
-                    </option>
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'rounded-md border p-2.5 flex items-center justify-between gap-2 transition-colors',
+                        isDisabled
+                          ? 'border-border/30 bg-muted/50 opacity-60 cursor-not-allowed'
+                          : 'border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
+                      )}
+                      onClick={() => !isDisabled && addItem(item)}
+                    >
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium truncate">{item.name}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground">{item.barcode}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] text-muted-foreground">{item.brand} — {item.model}</span>
+                          {item.category && (
+                            <Badge variant="secondary" className="text-[9px] h-4">{item.category.name}</Badge>
+                          )}
+                          {needsSerial && item.serialNumber && (
+                            <Badge variant="outline" className="text-[9px] font-mono h-4">
+                              S/N: {item.serialNumber}
+                            </Badge>
+                          )}
+                          {serialInUse && (
+                            <Badge variant="destructive" className="text-[9px] h-4">Em empréstimo</Badge>
+                          )}
+                          {serialAlreadyAdded && (
+                            <Badge variant="secondary" className="text-[9px] h-4">Já adicionado</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {canBulk && !isDisabled && (
+                          <input
+                            type="number"
+                            min={1}
+                            max={avail}
+                            value={qtyInputMap[item.id] ?? 1}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => {
+                              e.stopPropagation();
+                              setQtyInputMap(prev => ({
+                                ...prev,
+                                [item.id]: Math.max(1, Math.min(parseInt(e.target.value) || 1, avail))
+                              }));
+                            }}
+                            className="input-search h-7 w-16 text-xs text-center"
+                          />
+                        )}
+                        <Badge variant={isDisabled ? 'secondary' : 'default'} className="text-[10px] shrink-0">
+                          Disp: {avail}
+                        </Badge>
+                      </div>
+                    </div>
                   );
                 })}
                 {unavailableItems.length > 0 && (
-                  <optgroup label="── Sem estoque disponível ──">
+                  <>
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold px-2 pt-2">Sem estoque</p>
                     {unavailableItems.map(item => (
-                      <option key={item.id} value="" disabled>
-                        {item.name} — {item.barcode} (indisponível)
-                      </option>
+                      <div key={item.id} className="rounded-md border border-border/20 bg-muted/30 p-2.5 opacity-50 cursor-not-allowed">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium truncate">{item.name}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground">{item.barcode}</span>
+                          {item.requiresSerialNumber && item.serialNumber && (
+                            <Badge variant="outline" className="text-[9px] font-mono h-4">S/N: {item.serialNumber}</Badge>
+                          )}
+                          <Badge variant="destructive" className="text-[9px] h-4">Indisponível</Badge>
+                        </div>
+                      </div>
                     ))}
-                  </optgroup>
+                  </>
                 )}
-              </select>
-              {filteredItems.length === 0 && unavailableItems.length === 0 && (selectedCategoryId || itemSearch) && (
-                <p className="mt-1 text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Nenhum item encontrado com os filtros atuais.
-                </p>
-              )}
-              {filteredItems.length === 0 && unavailableItems.length > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Todos os itens desta seleção estão emprestados ou sem estoque.
-                </p>
-              )}
-            </div>
-
-            {/* Qty + Serial + Add button — only visible when an item is selected */}
-            {pendingItem && (
-              <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
-                <p className="text-xs font-medium text-foreground">
-                  {pendingItem.name} — <span className="font-mono text-muted-foreground">{pendingItem.barcode}</span>
-                </p>
-                <div className="flex gap-3 flex-wrap items-end">
-                  <div>
-                    <label className="text-xs text-muted-foreground">
-                      Quantidade {pendingNeedsSerial ? '(fixo: 1 — nº série)' : pendingCanBulk ? `(máx: ${pendingMaxQty})` : '(fixo: 1)'}
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={pendingMaxQty}
-                      value={qtyInput}
-                      onChange={e => setQtyInput(Math.max(1, Math.min(parseInt(e.target.value) || 1, pendingMaxQty)))}
-                      className="input-search h-8 w-24 mt-1"
-                      disabled={!pendingCanBulk}
-                    />
-                  </div>
-                  {(pendingNeedsSerial || serialInput) && (
-                    <div>
-                      <label className="text-xs text-muted-foreground">
-                        Nº Série {pendingNeedsSerial ? '*' : '(opcional)'}
-                      </label>
-                      <input
-                        value={serialInput}
-                        onChange={e => setSerialInput(e.target.value)}
-                        className={cn(
-                          'input-search h-8 w-40 mt-1',
-                          (pendingNeedsSerial && !serialInput) && 'border-destructive',
-                          pendingSerialConflict && 'border-destructive'
-                        )}
-                        placeholder={pendingNeedsSerial ? 'Obrigatório' : 'Opcional'}
-                      />
-                      {pendingSerialConflict && (
-                        <p className="text-[10px] text-destructive mt-0.5 flex items-center gap-0.5">
-                          <AlertCircle className="h-2.5 w-2.5" />
-                          Nº série já em empréstimo aberto
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    disabled={pendingNeedsSerial && (!serialInput.trim() || pendingSerialConflict)}
-                    className="h-8 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
-                  >
-                    Adicionar
-                  </button>
-                </div>
               </div>
-            )}
+            </div>
 
             {/* Selected items list — read-only display */}
             {selectedItems.length > 0 && (
@@ -502,7 +501,7 @@ export default function MaletaCreate() {
                   Itens selecionados ({selectedItems.length})
                 </p>
                 {selectedItems.map(si => (
-                  <div key={si.item_id} className="rounded-md border border-border/50 p-3 flex items-center justify-between gap-2">
+                  <div key={`${si.item_id}-${si.numero_serie ?? ''}`} className="rounded-md border border-border/50 p-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <p className="text-sm font-medium truncate">{si.itemName}</p>
                       <Badge variant="secondary" className="text-[10px] shrink-0">
