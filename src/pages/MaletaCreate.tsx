@@ -123,50 +123,32 @@ export default function MaletaCreate() {
     [categories, stockItems, selectedItems, loanedMap]
   );
 
-  // Filtered items based on category, search, and availability
+  // Filtered items based on category, serial search, and availability
   const filteredItems = useMemo(() => {
     return stockItems.filter(i => {
-      // Must not already be selected
-      if (selectedItems.some(s => s.item_id === i.id)) return false;
-      // Category filter
       if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
-      // Text search filter (name, barcode, brand, model)
-      if (itemSearch) {
-        const search = itemSearch.toLowerCase();
+      if (serialSearch) {
+        const search = serialSearch.toLowerCase();
         const matches =
-          i.name.toLowerCase().includes(search) ||
-          i.barcode.toLowerCase().includes(search) ||
-          i.brand.toLowerCase().includes(search) ||
-          i.model.toLowerCase().includes(search);
+          (i.serialNumber && i.serialNumber.toLowerCase().includes(search)) ||
+          i.barcode.toLowerCase().includes(search);
         if (!matches) return false;
       }
-      // Must have available quantity
-      const available = getAvailableQty(i.id);
-      if (available <= 0) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockItems, selectedItems, selectedCategoryId, itemSearch, loanedMap]);
+  }, [stockItems, selectedCategoryId, serialSearch]);
 
-  // Items with no stock but matching filters (to show as disabled)
-  const unavailableItems = useMemo(() => {
-    return stockItems.filter(i => {
-      if (selectedItems.some(s => s.item_id === i.id)) return false;
-      if (selectedCategoryId && i.categoryId !== selectedCategoryId) return false;
-      if (itemSearch) {
-        const search = itemSearch.toLowerCase();
-        const matches =
-          i.name.toLowerCase().includes(search) ||
-          i.barcode.toLowerCase().includes(search) ||
-          i.brand.toLowerCase().includes(search) ||
-          i.model.toLowerCase().includes(search);
-        if (!matches) return false;
-      }
-      const available = getAvailableQty(i.id);
-      return available <= 0;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockItems, selectedItems, selectedCategoryId, itemSearch, loanedMap]);
+  // Split into available and unavailable
+  const availableItems = useMemo(() => filteredItems.filter(i => {
+    const avail = getAvailableQty(i.id);
+    return avail > 0 && !selectedItems.some(s => s.item_id === i.id && (!i.allowBulkMovement || i.requiresSerialNumber));
+  }), [filteredItems, selectedItems, loanedMap]);
+
+  const unavailableItems = useMemo(() => filteredItems.filter(i => {
+    const avail = getAvailableQty(i.id);
+    return avail <= 0;
+  }), [filteredItems, loanedMap]);
 
   const filteredUsers = useMemo(
     () => profiles.filter(p =>
@@ -185,47 +167,61 @@ export default function MaletaCreate() {
     return false;
   };
 
-  // Derived state for the currently selected item in the filter
-  const pendingItem = useMemo(() => stockItems.find(i => i.id === selectedItemId), [stockItems, selectedItemId]);
-  const pendingAvailable = selectedItemId ? getAvailableQty(selectedItemId) : 0;
-  const pendingMaxQty = pendingItem
-    ? (pendingItem.requiresSerialNumber ? 1 : (pendingItem.allowBulkMovement ? pendingAvailable : 1))
-    : 1;
-  const pendingSerialConflict = getSerialConflict(serialInput);
-  const pendingNeedsSerial = pendingItem?.requiresSerialNumber ?? false;
-  const pendingCanBulk = pendingItem ? (pendingItem.allowBulkMovement && !pendingItem.requiresSerialNumber) : false;
-
-  const addItem = () => {
-    if (!selectedItemId || !pendingItem) return;
-
-    if (pendingAvailable <= 0) {
+  const addItem = (item: typeof stockItems[0]) => {
+    const available = getAvailableQty(item.id);
+    if (available <= 0) {
       toast({ title: 'Item sem estoque disponível', variant: 'destructive' });
       return;
     }
-    if (pendingNeedsSerial && (!serialInput || serialInput.trim() === '')) {
-      toast({ title: 'Nº de série obrigatório para este item', variant: 'destructive' });
-      return;
-    }
-    if (serialInput && pendingSerialConflict) {
-      toast({ title: `Nº de série "${serialInput}" já em uso em empréstimo aberto`, variant: 'destructive' });
-      return;
+
+    // For serial items, use the item's serial_number directly
+    if (item.requiresSerialNumber) {
+      if (!item.serialNumber) {
+        toast({ title: 'Item sem nº de série cadastrado', variant: 'destructive' });
+        return;
+      }
+      if (getSerialConflict(item.serialNumber)) {
+        toast({ title: `Nº de série "${item.serialNumber}" já em empréstimo aberto`, variant: 'destructive' });
+        return;
+      }
+      if (selectedItems.some(s => s.numero_serie === item.serialNumber)) {
+        toast({ title: `Nº de série "${item.serialNumber}" já adicionado`, variant: 'destructive' });
+        return;
+      }
     }
 
-    const finalQty = Math.max(1, Math.min(qtyInput, pendingMaxQty));
+    // For non-serial bulk items, check if already added (will increase qty)
+    if (!item.requiresSerialNumber && item.allowBulkMovement) {
+      const existing = selectedItems.find(s => s.item_id === item.id);
+      if (existing) {
+        const newQty = (qtyInputMap[item.id] ?? 1);
+        const totalQty = existing.quantidade + newQty;
+        if (totalQty > available + existing.quantidade) {
+          toast({ title: 'Quantidade excede o estoque disponível', variant: 'destructive' });
+          return;
+        }
+        setSelectedItems(prev => prev.map(s =>
+          s.item_id === item.id ? { ...s, quantidade: totalQty, availableQty: available } : s
+        ));
+        setQtyInputMap(prev => ({ ...prev, [item.id]: 1 }));
+        return;
+      }
+    }
+
+    const maxQty = item.requiresSerialNumber ? 1 : (item.allowBulkMovement ? available : 1);
+    const qty = item.requiresSerialNumber ? 1 : Math.max(1, Math.min(qtyInputMap[item.id] ?? 1, maxQty));
 
     setSelectedItems(prev => [...prev, {
-      item_id: pendingItem.id,
-      quantidade: finalQty,
-      numero_serie: serialInput.trim() || undefined,
-      itemName: `${pendingItem.name} (${pendingItem.barcode})`,
-      maxQty: pendingMaxQty,
-      availableQty: pendingAvailable,
-      requiresSerialNumber: pendingItem.requiresSerialNumber,
-      allowBulkMovement: pendingItem.allowBulkMovement && !pendingItem.requiresSerialNumber,
+      item_id: item.id,
+      quantidade: qty,
+      numero_serie: item.requiresSerialNumber ? item.serialNumber : undefined,
+      itemName: `${item.name} (${item.barcode})`,
+      maxQty,
+      availableQty: available,
+      requiresSerialNumber: item.requiresSerialNumber,
+      allowBulkMovement: item.allowBulkMovement && !item.requiresSerialNumber,
     }]);
-    setSelectedItemId('');
-    setSerialInput('');
-    setQtyInput(1);
+    setQtyInputMap(prev => ({ ...prev, [item.id]: 1 }));
   };
 
   const removeItem = (itemId: string) => {
