@@ -93,6 +93,8 @@ export default function MaletaCreate() {
   const [observacoes, setObservacoes] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedItemId, setSelectedItemId] = useState('');
+  const [serialInput, setSerialInput] = useState('');
+  const [qtyInput, setQtyInput] = useState(1);
   const [userSearch, setUserSearch] = useState('');
   const [itemSearch, setItemSearch] = useState('');
 
