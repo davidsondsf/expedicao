@@ -16,7 +16,7 @@ const CONDITION_MAP: Record<ItemCondition, { label: string; cls: string }> = {
   damaged: { label: 'Danificado', cls: 'bg-destructive/10 text-destructive border border-destructive/30' },
 };
 
-export default function ItemDetail() {
+export default function EstoqueDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -36,12 +36,12 @@ export default function ItemDetail() {
 
   if (!item) {
     return (
-      <AppLayout title="Item não encontrado">
+      <AppLayout title="Registro não encontrado">
         <div className="flex flex-col items-center justify-center py-20">
           <Package className="h-16 w-16 text-muted-foreground/40 mb-4" />
-          <p className="text-muted-foreground">Item não encontrado.</p>
-          <button onClick={() => navigate('/items')} className="mt-4 text-sm text-primary hover:underline">
-            Voltar para Itens
+          <p className="text-muted-foreground">Registro de estoque não encontrado.</p>
+          <button onClick={() => navigate('/estoque')} className="mt-4 text-sm text-primary hover:underline">
+            Voltar para Estoque
           </button>
         </div>
       </AppLayout>
@@ -57,11 +57,11 @@ export default function ItemDetail() {
     <AppLayout title={`Item: ${item.name}`}>
       <div className="space-y-5 max-w-4xl">
         <button
-          onClick={() => navigate('/items')}
+          onClick={() => navigate('/estoque')}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Voltar para Itens
+          Voltar para Estoque
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -136,30 +136,52 @@ export default function ItemDetail() {
               ) : (
                 <div className="space-y-2">
                   {movements.map(mov => (
-                    <div key={mov.id} className="flex items-center gap-3 rounded-md border border-border/50 p-3">
+                    <div key={mov.id} className="flex items-start gap-4 rounded-md border border-border/50 p-4">
                       <div className={cn(
-                        'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
+                        'h-10 w-10 rounded-full flex items-center justify-center shrink-0 mt-1',
                         mov.type === 'ENTRY' ? 'bg-success/10' : 'bg-destructive/10'
                       )}>
                         {mov.type === 'ENTRY'
-                          ? <TrendingUp className="h-4 w-4 text-success" />
-                          : <TrendingDown className="h-4 w-4 text-destructive" />
+                          ? <TrendingUp className="h-5 w-5 text-success" />
+                          : <TrendingDown className="h-5 w-5 text-destructive" />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={mov.type === 'ENTRY' ? 'badge-entry' : 'badge-exit'}>
-                            {mov.type === 'ENTRY' ? 'Entrada' : 'Saída'}
-                          </span>
-                          <span className="font-mono text-sm font-bold">{mov.quantity} un</span>
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className={mov.type === 'ENTRY' ? 'badge-entry' : 'badge-exit'}>
+                              {mov.type === 'ENTRY' ? 'Entrada' : 'Saída'}
+                            </span>
+                            <span className="font-mono text-sm font-bold">{mov.quantity} un</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs font-semibold">{mov.user?.name}</p>
+                            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                              {new Date(mov.createdAt).toLocaleDateString('pt-BR')} às {new Date(mov.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
                         </div>
-                        {mov.note && <p className="text-xs text-muted-foreground mt-0.5 truncate">{mov.note}</p>}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-muted-foreground">{mov.user?.name}</p>
-                        <p className="text-xs font-mono text-muted-foreground">
-                          {new Date(mov.createdAt).toLocaleDateString('pt-BR')}
-                        </p>
+                        {mov.note && <p className="text-sm text-muted-foreground mt-2">{mov.note}</p>}
+                        
+                        {/* Evidence Gallery */}
+                        {mov.photos && mov.photos.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-border/40">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Evidências Fotográficas ({mov.photos.length})</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {mov.photos.map((url, idx) => (
+                                <a 
+                                  key={idx} 
+                                  href={url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="block w-16 h-16 rounded-md overflow-hidden border border-border hover:opacity-80 transition-opacity bg-muted/30"
+                                >
+                                  <img src={url} alt={`Evidência ${idx+1}`} className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -196,7 +218,7 @@ export default function ItemDetail() {
                   if (e.key === 'Enter') {
                     const val = (e.target as HTMLInputElement).value;
                     const found = allItems.find(i => i.barcode === val);
-                    if (found) navigate(`/items/${found.id}`);
+                    if (found) navigate(`/estoque/${found.id}`);
                   }
                 }}
               />

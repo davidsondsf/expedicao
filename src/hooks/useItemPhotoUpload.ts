@@ -16,7 +16,8 @@ export function useItemPhotoUpload() {
       }
 
       const ext = file.name.split('.').pop();
-      const path = `${authData.user.id}/${itemId}/${Date.now()}.${ext}`;
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const path = `${authData.user.id}/${itemId}/${Date.now()}-${randomSuffix}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('item-photos')

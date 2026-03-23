@@ -8,7 +8,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMovements, useCreateMovement } from '@/hooks/useMovements';
+<<<<<<< Updated upstream
 import { useItems } from '@/hooks/useItems';
+=======
+import { useItems, useUpdateItem, useCreateItem } from '@/hooks/useItems';
+import { useCategories } from '@/hooks/useCategories';
+>>>>>>> Stashed changes
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -111,6 +116,12 @@ export default function Movements() {
   const { data: movements = [], isLoading } = useMovements();
   const { data: items = [] } = useItems();
   const createMovement = useCreateMovement();
+<<<<<<< Updated upstream
+=======
+  const createItem = useCreateItem();
+  const updateItem = useUpdateItem();
+  const { uploadPhoto } = useItemPhotoUpload();
+>>>>>>> Stashed changes
 
   const filtered = movements.filter(m => {
     const matchSearch = m.item?.name.toLowerCase().includes(search.toLowerCase()) ?? false;
@@ -118,18 +129,68 @@ export default function Movements() {
     return matchSearch && matchType;
   });
 
+<<<<<<< Updated upstream
   const handleSave = async (data: FormData) => {
+=======
+  const handleSave = async (data: MovementFormData, photoFiles?: File[]) => {
+>>>>>>> Stashed changes
     const item = items.find(i => i.id === data.itemId);
     if (!item) return;
 
     try {
+      let targetItemId = data.itemId;
+
+      // For ENTRY of a serialized item, create a unique physical representation (new row)
+      // if the serial differs from the selected base template.
+      if (data.type === 'ENTRY' && item.requiresSerialNumber && item.serialNumber !== data.serialNumber) {
+        const newItem = await createItem.mutateAsync({
+            name: item.name, brand: item.brand, model: item.model,
+            categoryId: item.categoryId, location: data.location || item.location,
+            minQuantity: item.minQuantity, quantity: 0,
+            requiresSerialNumber: true, allowBulkMovement: false,
+            serialNumber: data.serialNumber, condition: data.condition
+        });
+        targetItemId = newItem.id;
+      }
+
+      // Concurrent file upload to Supabase Storage
+      let uploadedPhotos: string[] = [];
+      if (photoFiles && photoFiles.length > 0) {
+        const uploadPromises = photoFiles.map(f => uploadPhoto(f, targetItemId));
+        const results = await Promise.all(uploadPromises);
+        uploadedPhotos = results.filter(Boolean) as string[];
+      }
+
       await createMovement.mutateAsync({
         type: data.type,
         quantity: data.quantity,
-        itemId: data.itemId,
+        itemId: targetItemId,
         userId: user?.id ?? '',
         note: data.note,
+        photos: uploadedPhotos,
       });
+<<<<<<< Updated upstream
+=======
+
+      // Update item metadata (photo, condition, serial, location)
+      const itemUpdate: Record<string, unknown> = { id: targetItemId };
+      let hasUpdate = false;
+
+      if (data.condition) { itemUpdate.condition = data.condition; hasUpdate = true; }
+      if (data.serialNumber !== undefined && data.serialNumber !== item.serialNumber) { itemUpdate.serialNumber = data.serialNumber; hasUpdate = true; }
+      if (data.location !== undefined && data.location !== item.location) { itemUpdate.location = data.location; hasUpdate = true; }
+
+      // Set the very first photo uploaded as the cover for the main physical item
+      if (uploadedPhotos.length > 0) {
+        itemUpdate.photoUrl = uploadedPhotos[0];
+        hasUpdate = true;
+      }
+
+      if (hasUpdate) {
+        await updateItem.mutateAsync(itemUpdate as any);
+      }
+
+>>>>>>> Stashed changes
       setDialogOpen(false);
       toast({ title: 'Movimentação registrada com sucesso!' });
     } catch (err) {

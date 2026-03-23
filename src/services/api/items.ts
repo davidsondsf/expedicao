@@ -10,8 +10,19 @@ export type CreateItemInput = {
   minQuantity: number;
   location: string;
   categoryId: string;
+<<<<<<< Updated upstream
   condition?: ItemCondition;
   photoUrl?: string;
+=======
+  minQuantity?: number;
+  requiresSerialNumber?: boolean;
+  allowBulkMovement?: boolean;
+  serialNumber?: string;
+  photoUrl?: string;
+  quantity?: number;
+  condition?: string;
+  location?: string;
+>>>>>>> Stashed changes
 };
 
 export type UpdateItemInput = Partial<CreateItemInput> & { id: string };
@@ -111,9 +122,21 @@ export const supabaseItemService: ItemService = {
         location: input.location,
         barcode,
         category_id: input.categoryId,
+<<<<<<< Updated upstream
         condition: input.condition || null,
         photo_url: input.photoUrl || null,
       })
+=======
+        min_quantity: input.minQuantity ?? 1,
+        requires_serial_number: input.requiresSerialNumber ?? false,
+        allow_bulk_movement: input.allowBulkMovement ?? true,
+        serial_number: input.serialNumber || null,
+        photo_url: input.photoUrl || null,
+        condition: input.condition || null,
+        quantity: input.quantity ?? 0,
+        location: input.location || '',
+      } as any)
+>>>>>>> Stashed changes
       .select('*, categories(*)')
       .single();
 

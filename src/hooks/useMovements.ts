@@ -5,6 +5,7 @@ import type { Movement, MovementType } from '@/types';
 type MovementRow = {
   id: string; type: string; quantity: number; item_id: string;
   user_id: string; note: string | null; created_at: string;
+  photos: string[] | null;
   items: {
     id: string; name: string; brand: string; model: string;
     barcode: string; quantity: number; min_quantity: number;
@@ -21,6 +22,7 @@ function mapMovement(row: MovementRow, profile?: ProfileRow): Movement {
     itemId: row.item_id,
     userId: row.user_id,
     note: row.note ?? undefined,
+    photos: row.photos || [],
     createdAt: row.created_at,
     item: row.items ? {
       id: row.items.id, name: row.items.name, brand: row.items.brand,
@@ -36,7 +38,7 @@ function mapMovement(row: MovementRow, profile?: ProfileRow): Movement {
   };
 }
 
-async function fetchMovementsWithProfiles(itemId?: string) {
+async function fetchMovementsWithProfiles(itemId?: string, itemIds?: string[]) {
   let query = supabase
     .from('movements')
     .select('*, items(id, name, brand, model, barcode, quantity, min_quantity)')
@@ -44,6 +46,8 @@ async function fetchMovementsWithProfiles(itemId?: string) {
 
   if (itemId) {
     query = query.eq('item_id', itemId);
+  } else if (itemIds && itemIds.length > 0) {
+    query = query.in('item_id', itemIds);
   }
 
   const { data, error } = await query;
@@ -81,12 +85,21 @@ export function useItemMovements(itemId: string) {
   });
 }
 
+export function useGroupMovements(itemIds: string[]) {
+  return useQuery({
+    queryKey: ['movements', 'group', itemIds],
+    queryFn: () => fetchMovementsWithProfiles(undefined, itemIds),
+    enabled: itemIds.length > 0,
+  });
+}
+
 type CreateMovementInput = {
   type: MovementType;
   quantity: number;
   itemId: string;
   userId: string;
   note?: string;
+  photos?: string[];
 };
 
 export function useCreateMovement() {
@@ -103,6 +116,7 @@ export function useCreateMovement() {
         p_quantity: input.quantity,
         p_user_id: input.userId,
         p_note: input.note || null,
+        p_photos: input.photos || [],
       });
       if (error) throw error;
     },

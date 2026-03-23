@@ -53,6 +53,7 @@ export interface Movement {
   userId: string;
   user?: User;
   note?: string;
+  photos?: string[];
   createdAt: string;
 }
 

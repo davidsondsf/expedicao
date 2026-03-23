@@ -9,8 +9,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Items = lazy(() => import("./pages/Items"));
-const ItemDetail = lazy(() => import("./pages/ItemDetail"));
+const Estoque = lazy(() => import("./pages/Estoque"));
+const EstoqueDetail = lazy(() => import("./pages/EstoqueDetail"));
 const Categories = lazy(() => import("./pages/Categories"));
 const Movements = lazy(() => import("./pages/Movements"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
@@ -42,8 +42,8 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
-              <Route path="/items/:id" element={<ProtectedRoute><ItemDetail /></ProtectedRoute>} />
+              <Route path="/estoque" element={<ProtectedRoute><Estoque /></ProtectedRoute>} />
+              <Route path="/estoque/:id" element={<ProtectedRoute><EstoqueDetail /></ProtectedRoute>} />
               <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
               <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
               <Route path="/maletas" element={<ProtectedRoute><Maletas /></ProtectedRoute>} />

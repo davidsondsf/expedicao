@@ -44,7 +44,7 @@ export default function Dashboard() {
   }, [movements]);
 
   const stats = [
-    { label: 'Itens Cadastrados', value: activeItems.length, icon: Package, color: 'text-info', bg: 'bg-info/10' },
+    { label: 'Estoque Cadastrado', value: activeItems.length, icon: Package, color: 'text-info', bg: 'bg-info/10' },
     { label: 'Categorias Ativas', value: activeCategories.length, icon: Tag, color: 'text-success', bg: 'bg-success/10' },
     { label: 'Movimentações', value: movements.length, icon: ArrowLeftRight, color: 'text-primary', bg: 'bg-primary/10' },
     { label: 'Estoque Baixo', value: lowStockItems.length, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
@@ -134,7 +134,7 @@ export default function Dashboard() {
               ) : lowStockItems.map(item => (
                 <button
                   key={item.id}
-                  onClick={() => navigate(`/items/${item.id}`)}
+                  onClick={() => navigate(`/estoque/${item.id}`)}
                   className="w-full text-left rounded-md border border-border/50 p-2.5 hover:border-destructive/40 hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">

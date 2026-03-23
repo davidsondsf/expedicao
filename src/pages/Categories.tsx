@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { AppLayout } from '@/components/AppLayout';
 import { Plus, Pencil, Tag, X, Check, Loader2 } from 'lucide-react';
 import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/useCategories';
+import { useCreateItem, useUpdateItem } from '@/hooks/useItems';
+import { useItemPhotoUpload } from '@/hooks/useItemPhotoUpload';
+import { ItemFormDialog } from '@/components/ItemFormDialog';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -9,12 +12,17 @@ export default function Categories() {
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const { canManageCategories } = usePermissions();
+  const [itemDialogOpen, setItemDialogOpen] = useState(false);
+  const { canManageCategories, canCreateItems } = usePermissions();
   const { toast } = useToast();
 
   const { data: categories = [], isLoading } = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+  
+  const createItem = useCreateItem();
+  const updateItem = useUpdateItem();
+  const { uploadPhoto } = useItemPhotoUpload();
 
   const handleAdd = async () => {
     if (!canManageCategories || !newName.trim()) return;
@@ -60,15 +68,41 @@ export default function Categories() {
     }
   };
 
+  const handleCreateItem = async (data: any, photoFile?: File | null) => {
+    try {
+      if (!canCreateItems) return;
+      const newItem = await createItem.mutateAsync(data);
+      if (photoFile && newItem?.id) {
+        const url = await uploadPhoto(photoFile, newItem.id);
+        if (url) await updateItem.mutateAsync({ id: newItem.id, photoUrl: url });
+      }
+      toast({ title: 'Novo modelo cadastrado!' });
+      setItemDialogOpen(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao salvar modelo';
+      toast({ title: msg, variant: 'destructive' });
+    }
+  };
+
   const active = categories.filter(c => c.active);
   const inactive = categories.filter(c => !c.active);
 
   return (
     <AppLayout title="Categorias">
       <div className="space-y-6 max-w-2xl">
-        <div className="page-header">
-          <h2 className="page-title">Categorias</h2>
-          <p className="page-subtitle">{active.length} categorias ativas</p>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="page-header mb-0">
+            <h2 className="page-title">Categorias</h2>
+            <p className="page-subtitle">{active.length} categorias ativas</p>
+          </div>
+          <button
+            onClick={() => setItemDialogOpen(true)}
+            disabled={!canCreateItems}
+            className="flex items-center gap-2 rounded-md bg-secondary text-secondary-foreground px-4 h-9 text-sm font-semibold border border-border/50 hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Registro Base
+          </button>
         </div>
 
         <div className="stat-card">
@@ -194,6 +228,15 @@ export default function Categories() {
           </div>
         )}
       </div>
+
+      {canCreateItems && (
+        <ItemFormDialog
+          open={itemDialogOpen}
+          onClose={() => setItemDialogOpen(false)}
+          item={null} // Only creation here
+          onSave={handleCreateItem}
+        />
+      )}
     </AppLayout>
   );
 }
