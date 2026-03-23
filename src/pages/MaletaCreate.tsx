@@ -178,6 +178,15 @@ export default function MaletaCreate() {
     [profiles, userSearch]
   );
 
+  // Validate serial is not already in use in open loans
+  const getSerialConflict = (serial?: string): boolean => {
+    if (!serial || serial.trim() === '') return false;
+    for (const [, loaned] of loanedMap) {
+      if (loaned.serials.includes(serial.trim())) return true;
+    }
+    return false;
+  };
+
   // Derived state for the currently selected item in the filter
   const pendingItem = useMemo(() => stockItems.find(i => i.id === selectedItemId), [stockItems, selectedItemId]);
   const pendingAvailable = selectedItemId ? getAvailableQty(selectedItemId) : 0;
@@ -185,6 +194,8 @@ export default function MaletaCreate() {
     ? (pendingItem.requiresSerialNumber ? 1 : (pendingItem.allowBulkMovement ? pendingAvailable : 1))
     : 1;
   const pendingSerialConflict = getSerialConflict(serialInput);
+  const pendingNeedsSerial = pendingItem?.requiresSerialNumber ?? false;
+  const pendingCanBulk = pendingItem ? (pendingItem.allowBulkMovement && !pendingItem.requiresSerialNumber) : false;
 
   const addItem = () => {
     if (!selectedItemId || !pendingItem) return;
@@ -193,7 +204,7 @@ export default function MaletaCreate() {
       toast({ title: 'Item sem estoque disponível', variant: 'destructive' });
       return;
     }
-    if (pendingItem.requiresSerialNumber && (!serialInput || serialInput.trim() === '')) {
+    if (pendingNeedsSerial && (!serialInput || serialInput.trim() === '')) {
       toast({ title: 'Nº de série obrigatório para este item', variant: 'destructive' });
       return;
     }
@@ -221,27 +232,6 @@ export default function MaletaCreate() {
 
   const removeItem = (itemId: string) => {
     setSelectedItems(prev => prev.filter(i => i.item_id !== itemId));
-  };
-
-  const updateQty = (itemId: string, qty: number) => {
-    setSelectedItems(prev => prev.map(i =>
-      i.item_id === itemId ? { ...i, quantidade: Math.max(1, Math.min(qty, i.maxQty)) } : i
-    ));
-  };
-
-  const updateSerial = (itemId: string, serial: string) => {
-    setSelectedItems(prev => prev.map(i =>
-      i.item_id === itemId ? { ...i, numero_serie: serial || undefined } : i
-    ));
-  };
-
-  // Validate serial is not already in use in open loans
-  const getSerialConflict = (serial?: string): boolean => {
-    if (!serial || serial.trim() === '') return false;
-    for (const [, loaned] of loanedMap) {
-      if (loaned.serials.includes(serial.trim())) return true;
-    }
-    return false;
   };
 
   const serialsValid = selectedItems.every(si => {
