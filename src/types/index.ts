@@ -36,6 +36,8 @@ export interface Item {
   active: boolean;
   condition?: ItemCondition;
   photoUrl?: string;
+  requiresSerialNumber?: boolean;
+  allowBulkMovement?: boolean;
   createdAt: string;
   updatedAt: string;
 }

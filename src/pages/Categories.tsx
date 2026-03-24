@@ -68,6 +68,7 @@ export default function Categories() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleCreateItem = async (data: any, photoFile?: File | null) => {
     try {
       if (!canCreateItems) return;

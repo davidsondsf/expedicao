@@ -1,16 +1,8 @@
-<<<<<<< Updated upstream
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Upload, ImageIcon, Loader2 } from 'lucide-react';
-=======
-import { useEffect, useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { X, Upload, ImageIcon } from 'lucide-react';
->>>>>>> Stashed changes
 import type { Item, ItemCondition } from '@/types';
 import { useCategories } from '@/hooks/useCategories';
 import { useItemPhotoUpload } from '@/hooks/useItemPhotoUpload';
@@ -33,15 +25,9 @@ const schema = z.object({
   minQuantity: z.coerce.number().min(0),
   location: z.string().min(1, 'Localização obrigatória'),
   categoryId: z.string().min(1, 'Categoria obrigatória'),
-<<<<<<< Updated upstream
-  condition: z.enum(['new', 'good', 'fair', 'poor', 'damaged']).optional(),
-=======
-  minQuantity: z.coerce.number().int().min(0, 'Mínimo não pode ser negativo'),
-  requiresSerialNumber: z.boolean(),
-  allowBulkMovement: z.boolean(),
-  serialNumber: z.string().optional(),
   condition: z.string().optional(),
->>>>>>> Stashed changes
+  requiresSerialNumber: z.boolean().optional(),
+  allowBulkMovement: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -50,11 +36,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   item: Item | null;
-<<<<<<< Updated upstream
   onSave: (data: FormData & { photoUrl?: string }) => Promise<void> | void;
-=======
-  onSave: (data: FormData, photoFile?: File | null) => Promise<void> | void;
->>>>>>> Stashed changes
 }
 
 const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
@@ -67,15 +49,7 @@ const Field = ({ label, error, children }: { label: string; error?: string; chil
 
 export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
   const { data: categories = [] } = useCategories();
-<<<<<<< Updated upstream
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
-=======
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
->>>>>>> Stashed changes
     resolver: zodResolver(schema),
   });
 
@@ -89,26 +63,16 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
     if (item) {
       reset({
         name: item.name, brand: item.brand, model: item.model,
-<<<<<<< Updated upstream
         serialNumber: item.serialNumber ?? '',
         quantity: item.quantity, minQuantity: item.minQuantity,
         location: item.location, categoryId: item.categoryId,
-        condition: item.condition,
+        condition: item.condition ?? '',
+        requiresSerialNumber: item.requiresSerialNumber ?? false,
+        allowBulkMovement: item.allowBulkMovement ?? true,
       });
       setPhotoPreview(item.photoUrl ?? null);
     } else {
-      reset({ name: '', brand: '', model: '', serialNumber: '', quantity: 0, minQuantity: 1, location: '', categoryId: '', condition: 'good' });
-=======
-        categoryId: item.categoryId,
-        minQuantity: item.minQuantity ?? 1,
-        requiresSerialNumber: item.requiresSerialNumber ?? false,
-        allowBulkMovement: item.allowBulkMovement ?? true,
-        condition: item.condition ?? '',
-      });
-      setPhotoPreview(item.photoUrl || null);
-    } else {
-      reset({ name: '', brand: '', model: '', categoryId: '', minQuantity: 1, requiresSerialNumber: false, allowBulkMovement: true, condition: '' });
->>>>>>> Stashed changes
+      reset({ name: '', brand: '', model: '', serialNumber: '', quantity: 0, minQuantity: 1, location: '', categoryId: '', condition: 'good', requiresSerialNumber: false, allowBulkMovement: true });
       setPhotoPreview(null);
     }
     setPhotoFile(null);
@@ -116,7 +80,6 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-<<<<<<< Updated upstream
     if (!file) return;
     setPhotoFile(file);
     const reader = new FileReader();
@@ -134,16 +97,6 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
     }
 
     onSave({ ...data, photoUrl });
-=======
-    if (file) {
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const onSubmit = async (data: FormData) => {
-    await onSave(data, photoFile);
->>>>>>> Stashed changes
   };
 
   if (!open) return null;
@@ -275,63 +228,6 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
               </select>
             </Field>
           </div>
-<<<<<<< Updated upstream
-=======
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Quantidade Mínima *" error={errors.minQuantity?.message}>
-              <input {...register('minQuantity')} type="number" min={0} className="input-search h-9 w-full" placeholder="Ex: 5" />
-            </Field>
-            <Field label="Condição/Estado" error={errors.condition?.message}>
-              <select {...register('condition')} className="input-search h-9 w-full">
-                <option value="">(Não especificada)</option>
-                <option value="new">Novo</option>
-                <option value="good">Bom</option>
-                <option value="fair">Regular</option>
-                <option value="poor">Ruim</option>
-                <option value="damaged">Danificado</option>
-              </select>
-            </Field>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-2">Foto Inicial (Opcional)</label>
-            <div className="flex gap-3 items-start">
-              <div
-                className="relative w-20 h-20 rounded-lg border-2 border-dashed border-border bg-muted/30 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50 transition-colors flex-shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {photoPreview ? (
-                  <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <ImageIcon className="h-5 w-5 opacity-50" />
-                    <span className="text-[10px]">Sem foto</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5 justify-center">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                >
-                  <Upload className="h-3 w-3" />
-                  {photoPreview ? 'Trocar' : 'Selecionar'}
-                </button>
-                {photoPreview && (
-                  <button
-                    type="button"
-                    onClick={() => { setPhotoPreview(null); setPhotoFile(null); }}
-                    className="h-7 px-2.5 rounded-md text-xs text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    Remover
-                  </button>
-                )}
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFileChange} />
-            </div>
-          </div>
-
           {/* Flags de regras de movimentação */}
           <div className="space-y-3 rounded-md border border-border p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Regras de Movimentação</p>
@@ -358,7 +254,6 @@ export function ItemFormDialog({ open, onClose, item, onSave }: Props) {
               </div>
             </label>
           </div>
->>>>>>> Stashed changes
 
           {/* Botões */}
           <div className="flex justify-end gap-3 pt-2">
